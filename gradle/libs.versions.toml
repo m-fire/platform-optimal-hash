@@ -1,13 +1,181 @@
 [versions]
-agp = "8.5.2"
-kotlin = "2.1.10"
-android-minSdk = "24"
-android-compileSdk = "34"
+# build tool
+vanniktechMavenPublish = "0.29.0"
+# lang
+kotlin = "2.1.20"
+java = "17"
+# lint
+ktlint = "12.2.0"
+# framework
+## Kotlin
+kotlinXCoroutines = "1.10.1"
+#ktor = "3.0.0"
+## Android
+### agp 플러그인 버전 별 Gralde 호환버전: https://developer.android.com/build/releases/gradle-plugin?hl=ko#updating-gradle
+agp = "8.9.1"
+androidCompileSdk = "35"
+androidMinSdk = "24"
+androidTargetSdk = "35"
+androidXActivityCompose = "1.10.1"
+androidXAppcompat = "1.7.0"
+androidXConstraintlayout = "2.2.1"
+androidXCoreKtx = "1.16.0"
+androidXEspressoCore = "3.6.1"
+androidXLifecycle = "2.8.4"
+androidXMaterial = "1.12.0"
+composeMultiplatform = "1.7.3"
+## iOS
+skie = "0.9.3"
+## Spring
+springBoot = "3.3.5"
+springDependencyManagement = "1.1.6"
+springCloudDependencies = "2023.0.2"
+# network
+restAssured = "5.5.0" # spring based
+# data
+kotlinJdsl = "3.5.3"
+h2 = "2.3.232"
+hibernate = "6.6.1.Final"
+hypersistenceUtils = "3.7.7"
+querydsl = "5.1.0"
+querydslJakarta = "5.1.0:jakarta"
+p6spy = "1.9.2"
+# utility
+#springSecurityCrypto = "6.2.4" # For `SCrypte` password in/decode when not using S.Security,
+kotlinXDatetime = "0.6.2"
+logback = "1.5.11"
+kotlinLogging = "7.0.6"
+jjwt = "0.12.6"
+googleGuavaJre = "33.3.1-jre"
+#googleGuavaAndroid = "33.3.1-android"
+jacksonModuleJakartaXmlbindAnnotations = "2.18.0"
+ulidCreator = "5.2.3"
+bcprovJdk18On = "1.78.1"
+# docs
+asciidoctor = "4.0.2"
+restdocsApiSpec = "0.19.4"
+springRestdocs = "3.0.2"
+# test framework
+androidXTest = "1.6.2"
+androidXTestExt = "1.2.1"
+androidXTestJunit = "1.2.1"
+junit = "4.13.2"
+kotest = "5.9.1"
+kotestExtensionsSpring = "1.3.0"
+springMockk = "4.0.2"
+#sentry = "4.13.0"
+#sentryPlugin = "7.16.0"
 
 [libraries]
+# lang
+jackson-module-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin" }
+kotlin-stdlib-jdk8 = { module = "org.jetbrains.kotlin:kotlin-stdlib-jdk8" }
+kotlin-reflect = { module = "org.jetbrains.kotlin:kotlin-reflect" }
+kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinXCoroutines" }
+kotlinx-coroutines-js = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core-js", version.ref = "kotlinXCoroutines" }
+# android
+androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidXCoreKtx" }
+androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidXEspressoCore" }
+androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidXAppcompat" }
+androidx-material = { module = "com.google.android.material:material", version.ref = "androidXMaterial" }
+androidx-constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "androidXConstraintlayout" }
+androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidXActivityCompose" }
+androidx-lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel", version.ref = "androidXLifecycle" }
+androidx-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidXLifecycle" }
+# kotlin multiplatform
+kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinXCoroutines" }
+# spring based
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security" }
+spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation" }
+spring-boot-devtools = { module = "org.springframework.boot:spring-boot-devtools" }
+spring-session-jdbc = { module = "org.springframework.session:spring-session-jdbc" }
+# network
+rest-assured = { module = "io.rest-assured:rest-assured", version.ref = "restAssured" }
+# data
+h2 = { module = "com.h2database:h2" }
+querydsl-core = { module = "com.querydsl:querydsl-core", version.ref = "querydsl" }
+querydsl-jpa-jakarta = { module = "com.querydsl:querydsl-jpa-jakarta", version.ref = "querydslJakarta" }
+querydsl-apt-jakarta = { module = "com.querydsl:querydsl-apt-jakarta", version.ref = "querydslJakarta" }
+jakarta-annotation-api = { module = "jakarta.annotation:jakarta.annotation-api" }
+jakarta-persistence-api = { module = "jakarta.persistence:jakarta.persistence-api" }
+hibernate-core = { module = "org.hibernate.orm:hibernate-core", version.ref = "hibernate" }
+hypersistence-utils = { module = "io.hypersistence:hypersistence-utils-hibernate-63", version.ref = "hypersistenceUtils" }
+jackson-module-jakarta-xmlbind-annotations = { module = "com.fasterxml.jackson.module:jackson-module-jakarta-xmlbind-annotations", version.ref = "jacksonModuleJakartaXmlbindAnnotations" }
+p6spy-spring-boot-starter = { module = "com.github.gavlyukovskiy:p6spy-spring-boot-starter", version.ref = "p6spy" }
+datasource-proxy-spring-boot-starter = { module = "com.github.gavlyukovskiy:datasource-proxy-spring-boot-starter", version.ref = "p6spy" }
+flexy-pool-spring-boot-starter = { module = "com.github.gavlyukovskiy:flexy-pool-spring-boot-starter", version.ref = "p6spy" }
+# utility
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinXDatetime" }
+logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+ulid-creator = { module = "com.github.f4b6a3:ulid-creator", version.ref = "ulidCreator" }
+## kotlin-logging 플렛폼 별 지원목록: https://repo1.maven.org/maven2/io/github/oshai/
+kotlin-logging = { module = "io.github.oshai:kotlin-logging", version.ref = "kotlinLogging" }
+kotlin-logging-jvm = { module = "io.github.oshai:kotlin-logging-jvm", version.ref = "kotlinLogging" }
+kotlin-logging-androidnativex64 = { module = "io.github.oshai:kotlin-logging-androidnativex64", version.ref = "kotlinLogging" }
+kotlin-logging-macosx64 = { module = "io.github.oshai:kotlin-logging-macosx64", version.ref = "kotlinLogging" }
+kotlin-logging-iosx64 = { module = "io.github.oshai:kotlin-logging-iosx64", version.ref = "kotlinLogging" }
+kotlin-logging-linuxx64 = { module = "io.github.oshai:kotlin-logging-linuxx64", version.ref = "kotlinLogging" }
+kotlin-logging-mingwx64 = { module = "io.github.oshai:kotlin-logging-mingwx64", version.ref = "kotlinLogging" }
+jjwt-api = { module = "io.jsonwebtoken:jjwt-api", version.ref = "jjwt" }
+jjwt-impl = { module = "io.jsonwebtoken:jjwt-impl", version.ref = "jjwt" }
+jjwt-jackson = { module = "io.jsonwebtoken:jjwt-jackson", version.ref = "jjwt" }
+google-guava = { module = "com.google.guava:guava", version.ref = "googleGuavaJre" }
+bcprov-jdk18on = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bcprovJdk18On" }
+# docs
+spring-restdocs = { module = "org.springframework.restdocs:spring-restdocs-core", version.ref = "springRestdocs" }
+spring-restdocs-asciidoctor = { module = "org.springframework.restdocs:spring-restdocs-asciidoctor" }
+spring-restdocs-restassured = { module = "org.springframework.restdocs:spring-restdocs-restassured" }
+restdocs-api-spec = { module = "com.epages:restdocs-api-spec", version.ref = "restdocsApiSpec" }
+asciidoctor-convert = { module = "org.asciidoctor:asciidoctor-gradle-jvm", version.ref = "asciidoctor" }
+# test
+junit = { module = "junit:junit", version.ref = "junit" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
+kotest-framework-engine = { module = "io.kotest:kotest-framework-engine", version.ref = "kotest" }
+kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
+kotest-runner-junit5 = { module = "io.kotest:kotest-runner-junit5", version.ref = "kotest" }
+kotest-property = { module = "io.kotest:kotest-property", version.ref = "kotest" }
+kotest-framework-datatest = { module = "io.kotest:kotest-framework-datatest", version.ref = "kotest" }
+rest-assured-kotlin-extensions = { module = "io.rest-assured:kotlin-extensions", version.ref = "restAssured" }
+restdocs-api-spec-mockmvc = { module = "com.epages:restdocs-api-spec-mockmvc", version.ref = "restdocsApiSpec" }
+restdocs-api-spec-restassured = { module = "com.epages:restdocs-api-spec-restassured", version.ref = "restdocsApiSpec" }
+androidx-test-core = { module = "androidx.test:core", version.ref = "androidXTest" }
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidXTest" }
+androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidXTestJunit" }
+## Spring based
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+spring-security-test = { module = "org.springframework.security:spring-security-test" }
+spring-mock-mvc = { module = "io.rest-assured:spring-mock-mvc" }
+spring-restdocs-mockmvc = { module = "org.springframework.restdocs:spring-restdocs-mockmvc" }
+rest-assured-spring-mock-mvc = { module = "io.rest-assured:spring-mock-mvc", version.ref = "restAssured" }
+kotest-extensions-spring = { module = "io.kotest.extensions:kotest-extensions-spring", version.ref = "kotestExtensionsSpring" }
+spring-mockk = { module = "com.ninja-squad:springmockk", version.ref = "springMockk" }
+
+[bundles]
+androidx-test-junit = ["androidx-test-runner", "androidx-test-core", "androidx-test-junit"]
 
 [plugins]
-androidLibrary = { id = "com.android.library", version.ref = "agp" }
+# build tool
+vanniktech-mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktechMavenPublish" }
+# kotlin
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-composeCompiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kotlin-ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
+kotlin-ktlint-idea = { id = "org.jlleitschuh.gradle.ktlint-idea", version.ref = "ktlint" }
+# kotlin multiplatform
+kotlin-composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
-vanniktech-mavenPublish = { id = "com.vanniktech.maven.publish", version = "0.29.0" }
+# android
+android-application = { id = "com.android.application", version.ref = "agp" }
+androidLibrary = { id = "com.android.library", version.ref = "agp" }
+# ios
+touchlab-skie = { id = "co.touchlab.skie", version.ref = "skie" }
+# spring based
+kotlin-spring = { id = "org.jetbrains.kotlin.plugin.spring", version.ref = "kotlin" }
+kotlin-jpa = { id = "org.jetbrains.kotlin.plugin.jpa", version.ref = "kotlin" }
+spring-dependencyManagement = { id = "io.spring.dependency-management", version.ref = "springDependencyManagement" }
+# docs
+asciidoctor-jvm-convert = { id = "org.asciidoctor.jvm.convert", version.ref = "asciidoctor" }
+epages-restdocsApiSpec = { id = "com.epages.restdocs-api-spec", version.ref = "restdocsApiSpec" }
