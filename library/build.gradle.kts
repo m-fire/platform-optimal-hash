@@ -43,19 +43,17 @@ kotlin {
         val commonTest by getting {
             dependencies {
                 // KMP Kotest 필수 의존성(
-                // implementation(libs.kotlin.test) // 불필요
-                implementation(libs.kotest.framework.engine)
-                implementation(libs.kotest.assertions.core)
-
-                implementation(libs.kotest.property)
+                implementation(libs.kotlin.test)
+                // 아직 KMP 에서 Kotest 미지원
+                // implementation(libs.kotest.framework.engine)
+                // implementation(libs.kotest.assertions.core)
+                // implementation(libs.kotest.property)
             }
         }
 
         // native source sets
         val nativeMain by getting { dependencies { } }
-        val nativeTest by getting {
-            dependencies { }
-        }
+        val nativeTest by getting { dependencies { } }
 
         // platform-specific source sets
         // val androidNativeX64Main by getting { dependencies { } }
