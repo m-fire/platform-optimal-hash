@@ -1,50 +1,78 @@
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+object LibProps {
+    const val BUILD_FILENAME = "optimal_hash"
+}
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidLibrary)
 }
 
 group = "io.stormi.support"
 version = "1.0.0"
 
 kotlin {
-    androidTarget {
-        publishLibraryVariants("release")
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
-        compilerOptions {
-            jvmTarget.set(JvmTarget.JVM_21)
+    applyDefaultHierarchyTemplate()
+
+    // 네이티브 라이브러리 배포를 위한 64-bit Platform Targets
+    listOf(
+        // Android OS Targets (Intel & Apple Silicon)
+        androidNativeX64(),
+        androidNativeArm64(),
+        // macOS Targets (Intel & Apple Silicon)
+        macosX64(),
+        macosArm64(),
+        // iOS & iPadOS Targets (Device & Simulators)
+        iosX64(), // iPadOS는 iOS 와 동일하게 처리
+        iosArm64(),
+        iosSimulatorArm64(),
+        linuxX64(),
+        mingwX64("windowsX64"),
+    ).apply {
+        forEach { target ->
+            // 빌드 후 생성될 플렛폼 별 라이브러리 파일명
+            target.binaries { sharedLib { baseName = LibProps.BUILD_FILENAME } }
         }
     }
-    androidNativeX64()
-    androidNativeArm64()
-    linuxX64()
-    linuxArm64()
-    mingwX64("windowsX64")
 
     sourceSets {
+        // common source sets
         val commonMain by getting {
             dependencies {
-                //put your multiplatform dependencies here
+                // put current sets dependencies here
             }
         }
         val commonTest by getting {
             dependencies {
-                implementation(libs.kotlin.test)
+                // KMP Kotest 필수 의존성(
+                // implementation(libs.kotlin.test) // 불필요
+                implementation(libs.kotest.framework.engine)
+                implementation(libs.kotest.assertions.core)
+
+                implementation(libs.kotest.property)
             }
         }
-    }
-}
 
-android {
-    namespace = "io.stormi.support.lang.dart.collection.hash"
-    compileSdk = libs.versions.androidCompileSdk.get().toInt()
-    defaultConfig {
-        minSdk = libs.versions.androidMinSdk.get().toInt()
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        // native source sets
+        val nativeMain by getting { dependencies { } }
+        val nativeTest by getting {
+            dependencies { }
+        }
+
+        // platform-specific source sets
+        // val androidNativeX64Main by getting { dependencies { } }
+        // val androidNativeX64Test by getting { dependencies { } }
+        // val androidNativeArm64Main by getting { dependencies { } }
+        // val androidNativeArm64Test by getting { dependencies { } }
+        // val iosMain by getting { dependencies { } }
+        // val iosTest by getting { dependencies { } }
+        // val linuxMain by getting { dependencies { } }
+        // val linuxTest by getting { dependencies { } }
+        // val windowsX64Main by getting { dependencies { } }
+        // val windowsX64Test by getting { dependencies { } }
+        // val iosX64Main by getting { dependencies { } }
+        // val iosX64Test by getting { dependencies { } }
+        // val iosArm64Main by getting { dependencies { } }
+        // val iosArm64Test by getting { dependencies { } }
+        // val iosSimulatorArm64Main by getting { dependencies { } }
+        // val iosSimulatorArm64Test by getting { dependencies { } }
     }
 }

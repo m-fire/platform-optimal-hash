@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "platform-optimal-hashe"
+rootProject.name = "platform-optimal-hash"
 include(":library")
