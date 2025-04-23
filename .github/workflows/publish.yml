@@ -77,39 +77,33 @@ jobs:
 
       # 패키징 및 바이너리 복사 (기존 스크립트 사용)
       - name: 8. Package and Copy Binaries
-        run: ./.github/workflows/scripts/package-binaries.sh "${{ steps.version.outputs.version_num }}" "library" "bin"
+        run: ./.github/workflows/scripts/package-binaries.sh "${{ steps.version.outputs.version_num }}" "./library" "./bin"
 
       # 저장소에 바이너리 커밋 및 푸시 (태그 푸시 시에만)
       - name: 9. Commit and Push Binaries to Main Branch
-        if: startsWith(github.ref, 'refs/tags/') # 태그 푸시 시에만 실행
+        if: startsWith(github.ref, 'refs/tags/')
         run: ./.github/workflows/scripts/commit-push-binaries.sh
         env:
           INPUT_VERSION_TAG: ${{ steps.version.outputs.version_tag }}
           INPUT_GIT_USER_NAME: github-actions[bot]
           INPUT_GIT_USER_EMAIL: github-actions[bot]@users.noreply.github.com
-          INPUT_TARGET_BRANCH: main
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
 
       # GitHub Release 생성 및 에셋 업로드
       - name: 10. Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
-        # 태그 푸시 또는 수동 실행 시 항상 실행 (수동 실행 시 커밋 단계는 건너뜀)
         with:
-          tag_name: v${{ steps.version.outputs.version_num }} # 버전 결정 스크립트 출력 사용
-          name: Release ${{ steps.version.outputs.version_num }} # 버전 결정 스크립트 출력 사용
+          tag_name: v${{ steps.version.outputs.version_num }}
+          name: Release ${{ steps.version.outputs.version_num }}
           draft: false
           prerelease: false
           files: |
             platform-binaries-*.zip
-            library/build/bin/*/releaseShared/*.so
+            library/build/bin/*/releaseShared/*
           generate_release_notes: true
           body: |
             ## Platform binary release v${{ steps.version.outputs.version_num }}
-
             Binaries are available as a single zip file and individual assets below.
             Individual binaries are also available directly in the repository under the `/bin` directory (committed to the `main` branch).
-
             **Included Platforms:**
             - Android (arm64, x64)
             - iOS (arm64, x64)
@@ -117,6 +111,5 @@ jobs:
             - Windows (x64)
             - Linux (x64)
         env:
-          # 릴리스 생성 권한이 있는 토큰 (PAT 사용)
           username: ${{ github.actor }}
           token: ${{ secrets.PACKAGE_TOKEN }}
