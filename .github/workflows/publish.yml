@@ -61,6 +61,12 @@ jobs:
       - name: 6. Build all targets
         run: ./gradlew assemble
 
+      # 빌드 산출물 존재 디버깅
+      - name: "Debug: List build outputs"
+        run: |
+          echo "==== [library/build/bin] 디렉토리 내용 ===="
+          ls -alR ./library/build/bin || echo "[library/build/bin] 디렉토리가 존재하지 않습니다."
+
       # 버전 결정 (외부 스크립트 사용)
       - name: 7. Github Workflow determine Version
         id: version # 스텝 ID 설정하여 출력값 참조
