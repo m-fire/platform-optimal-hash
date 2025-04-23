@@ -36,6 +36,20 @@ echo "라이브러리 파일명: ${LIB_NAME}"
 # 빌드 디렉토리
 BUILD_BIN_DIR="${LIB_PATH}/build/bin"
 
+# 빌드 디렉토리 존재 확인 및 트리 구조 출력
+if [ ! -d "$BUILD_BIN_DIR" ]; then
+  echo "Error: 빌드 바이너리 디렉토리 '$BUILD_BIN_DIR' 를 찾을 수 없습니다." >&2
+  exit 1
+fi
+
+echo "=== 빌드 바이너리 디렉토리 트리 구조 출력 ==="
+if command -v tree >/dev/null 2>&1; then
+  tree "$BUILD_BIN_DIR"
+else
+  find "$BUILD_BIN_DIR"
+fi
+echo "========================================="
+
 # 모든 플랫폼 디렉토리 찾기
 echo "빌드된 플랫폼 검색 중..."
 PLATFORMS=$(find "${BUILD_BIN_DIR}" -type d -name "releaseShared" | awk -F/ '{print $(NF-1)}')

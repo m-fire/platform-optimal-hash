@@ -71,7 +71,7 @@ jobs:
 
       # 패키징 및 바이너리 복사 (기존 스크립트 사용)
       - name: 8. Package and Copy Binaries
-        run: ./.github/workflows/scripts/package-binaries.sh "${{ steps.version.outputs.version_num }}" "library/build/bin" "bin"
+        run: ./.github/workflows/scripts/package-binaries.sh "${{ steps.version.outputs.version_num }}" "library" "bin"
 
       # 저장소에 바이너리 커밋 및 푸시 (태그 푸시 시에만)
       - name: 9. Commit and Push Binaries to Main Branch
