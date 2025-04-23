@@ -30,13 +30,13 @@ jobs:
           # 저장소 쓰기 권한이 있는 토큰 사용 권장
           token: ${{ secrets.GITHUB_TOKEN }} # 기본 토큰 사용 (권한 부족 시 PAT로 변경)
 
-      # 1. 모든 스크립트 실행권한 보장
+      # 1. 모든 쉘 스크립트 실행권한 보장
       - name: Ensure all scripts are executable
-        run: chmod +x .github/workflows/scripts/*.sh
+        run: chmod +x ./.github/workflows/scripts/*.sh
 
       # 2. build.gradle.kts 버전 증가
       - name: Bump Gradle version
-        run: .github/workflows/scripts/bump-gradle-version.sh
+        run: ./.github/workflows/scripts/bump-gradle-version.sh
 
       # 3. Xcode 설정
       - name: Set up Xcode
@@ -63,19 +63,19 @@ jobs:
       # 7. 버전 결정 (외부 스크립트 사용)
       - name: Github Workflow determine Version
         id: version # 스텝 ID 설정하여 출력값 참조
-        run: .github/workflows/scripts/github-determine-version.sh
+        run: ./.github/workflows/scripts/github-determine-version.sh
         env:
           WORKFLOW_INPUT_VERSION: ${{ github.event.inputs.version }}
           WORKFLOW_GITHUB_REF: ${{ github.ref }}
 
       # 8. 패키징 및 바이너리 복사 (기존 스크립트 사용)
       - name: Package and Copy Binaries
-        run: .github/workflows/scripts/package-binaries.sh "${{ steps.version.outputs.version_num }}" "library" "bin"
+        run: ./.github/workflows/scripts/package-binaries.sh "${{ steps.version.outputs.version_num }}" "library" "bin"
 
       # 9. 저장소에 바이너리 커밋 및 푸시 (태그 푸시 시에만)
       - name: Commit and Push Binaries to Main Branch
         if: startsWith(github.ref, 'refs/tags/') # 태그 푸시 시에만 실행
-        run: .github/workflows/scripts/commit-push-binaries.sh
+        run: ./.github/workflows/scripts/commit-push-binaries.sh
         env:
           INPUT_VERSION_TAG: ${{ steps.version.outputs.version_tag }}
           INPUT_GIT_USER_NAME: github-actions[bot]
