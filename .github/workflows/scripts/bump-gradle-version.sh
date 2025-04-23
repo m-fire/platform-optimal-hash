@@ -1,10 +1,9 @@
 #!/bin/bash
 set -e
 
-# 스크립트 위치 기준으로 경로 보정
-dirname=$(cd "$(dirname "$0")/../../.." && pwd)
-# 테스트 환경(LIBRARY_FILE) 우선, 아니면 기존 경로
-file="${LIBRARY_FILE:-$dirname/platform-optimal-hash/library/build.gradle.kts}"
+# 저장소 루트 기준으로 경로 설정
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+file="${LIBRARY_FILE:-$REPO_ROOT/library/build.gradle.kts}"
 
 # 버전 라인 추출 (prerelease 포함)
 version_line=$(grep -E 'version\s*=\s*"' "$file")
