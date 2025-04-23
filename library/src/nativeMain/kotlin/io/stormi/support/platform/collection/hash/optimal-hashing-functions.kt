@@ -26,7 +26,7 @@ const val P_MODULUS: Long = 4294967311L // 소수 모듈러스 p (2^32에 가까
  * @return 계산된 64비트 해시 값. 테이블 포인터가 null이면 `keyHashCode`를 그대로 반환.
  */
 @OptIn(ExperimentalNativeApi::class, ExperimentalForeignApi::class)
-@CName("elastic_tabulation_hash_native") // 네이티브 함수 이름 지정
+@CName("elastic_tabulation_hash") // 네이티브 함수 이름 지정
 fun elasticTabulationHashNative(keyHashCode: Long, tableDataPtr: COpaquePointer?): Long {
     // 포인터 유효성 검사 (early return)
     if (tableDataPtr == null) {
@@ -67,7 +67,7 @@ fun elasticTabulationHashNative(keyHashCode: Long, tableDataPtr: COpaquePointer?
  * @return 계산된 64비트 Universal 해시 값 ([0, P_MODULUS - 1] 범위).
  */
 @OptIn(ExperimentalNativeApi::class)
-@CName("funnel_universal_hash_native") // 네이티브 함수 이름 지정
+@CName("funnel_universal_hash") // 네이티브 함수 이름 지정
 fun funnelUniversalHashNative(keyHashCode: Long, a: Long, b: Long): Long {
     // (a * x) mod p 계산 (64비트 모듈러 곱셈 사용)
     val axModPLong = multiplyMod64(a, keyHashCode, P_MODULUS)
