@@ -6,8 +6,8 @@ on:
   push:
     branches: [ main ]
     paths:
-      - '.github/**'  # Github Action script 변경 시 실행
-      - 'library/**'  # library 하위 내용 변경 시 실행
+      - './.github/**'  # Github Action script 변경 시 실행
+      - './library/**'  # library 하위 내용 변경 시 실행
     tags:
       - 'v*'  # v로 시작하는 태그 푸시 시에만 실행
   workflow_dispatch: # 수동 트리거

@@ -6,7 +6,7 @@ echo "===== 스크립트 유효성 테스트 시작 ====="
 SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)/scripts"
 
 # 0. test-scripts.sh 자체 문법 체크
-bash -n "./test-scripts.sh"
+bash -n "./scripts-test.sh"
 echo "[TEST] test-scripts.sh  - Syntax OK"
 
 echo "[TEST] scripts/*.sh 문법 체크"
