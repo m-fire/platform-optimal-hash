@@ -45,16 +45,17 @@ jobs:
           xcode-version: latest-stable
 
       # 4. JDK 설정
-      - uses: actions/setup-java@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: 17
+          java-version: '17'
 
       # 5. Gradle 설정 (JDK 17 포함 및 캐싱 최적화)
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/gradle-build-action@v3
         with:
-          java-version: '17'
+          cache-disabled: false
 
       # 6. 모든 타겟 빌드
       - name: Build all targets
@@ -89,18 +90,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         # 태그 푸시 또는 수동 실행 시 항상 실행 (수동 실행 시 커밋 단계는 건너뜀)
         with:
-          tag_name: ${{ steps.version.outputs.version_tag }} # 버전 결정 스크립트 출력 사용
+          tag_name: v${{ steps.version.outputs.version_num }} # 버전 결정 스크립트 출력 사용
           name: Release ${{ steps.version.outputs.version_num }} # 버전 결정 스크립트 출력 사용
           draft: false
           prerelease: false
           files: |
-            platform-binaries-${{ steps.version.outputs.version_num }}.zip # 루트의 zip 파일
-            library/build/bin/**/releaseShared/*.so # 빌드된 개별 바이너리
-            library/build/bin/**/releaseShared/*.dylib
-            library/build/bin/**/releaseShared/*.dll
+            platform-binaries-*.zip
+            library/build/bin/*/releaseShared/*.so
           generate_release_notes: true
           body: |
-            ## Platform binary release ${{ steps.version.outputs.version_tag }}
+            ## Platform binary release v${{ steps.version.outputs.version_num }}
 
             Binaries are available as a single zip file and individual assets below.
             Individual binaries are also available directly in the repository under the `/bin` directory (committed to the `main` branch).
@@ -112,5 +111,6 @@ jobs:
             - Windows (x64)
             - Linux (x64)
         env:
-          # 릴리스 생성 권한이 있는 토큰 (기본 토큰으로 충분할 수 있음)
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 릴리스 생성 권한이 있는 토큰 (PAT 사용)
+          username: ${{ github.actor }}
+          token: ${{ secrets.PACKAGE_TOKEN }}

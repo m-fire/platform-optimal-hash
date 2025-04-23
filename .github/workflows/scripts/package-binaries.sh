@@ -66,3 +66,7 @@ for PLATFORM in ${PLATFORMS}; do
 done
 
 echo "==== 바이너리 패키징 완료 ===="
+
+# zip 파일을 저장소 루트에 생성
+cd "$REPO_ROOT"
+zip -r "platform-binaries-${VERSION}.zip" "$OUTPUT_PATH"
