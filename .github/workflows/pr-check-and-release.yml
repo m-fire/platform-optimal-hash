@@ -1,4 +1,4 @@
-C# 워크플로우 이름
+# 워크플로우 이름
 name: PR Check & Release on Tag
 
 # 워크플로우 트리거 조건
