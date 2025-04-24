@@ -50,7 +50,7 @@ jobs:
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4C
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Run Checks & Linters
         run: ./gradlew check ktlintCheck --build-cache
