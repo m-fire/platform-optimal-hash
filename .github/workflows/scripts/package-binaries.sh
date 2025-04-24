@@ -110,8 +110,8 @@ for PLATFORM in ${PLATFORMS}; do
 
     echo "바이너리 검색 위치: ${BIN_DIR}"
 
-    # 해당 확장자를 가진 파일들을 찾아서 처리
-    find "${BIN_DIR}" -maxdepth 1 -type f -name "*.${EXT}" | while IFS= read -r src_file; do
+    # 프로세스 치환(< <(...))을 사용하여 while 루프가 subshell에서 실행되지 않도록 함
+    while IFS= read -r src_file; do
         filename=$(basename "$src_file")
 
         # 파일명에 BINARY_FILENAME 이 포함되어 있는지 확인 ('lib' 접두사 유무 관계 없음)
@@ -125,7 +125,8 @@ for PLATFORM in ${PLATFORMS}; do
         else
             echo "파일명 불일치 (무시): ${filename} (BINARY_FILENAME '${BINARY_FILENAME}' 미포함)"
         fi
-    done
+    # 프로세스 치환 사용
+    done < <(find "${BIN_DIR}" -maxdepth 1 -type f -name "*.${EXT}")
 
     # 파일 찾기 결과 확인
     if [ $found -eq 0 ]; then
