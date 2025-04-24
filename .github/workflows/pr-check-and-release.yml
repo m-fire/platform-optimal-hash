@@ -27,8 +27,9 @@ on:
 
 # =============================================================================
 # 중요: GitHub 저장소 설정에서 'main' 브랜치 보호 규칙(Branch Protection Rule)을
-# 설정하고, 아래 'lint-test', 'build-non-apple', 'build-apple' Job들을
+# 설정하고, 아래 'lint-test' Job (또는 그 name인 'Lint and Test')을
 # 필수 상태 검사(Required status checks)로 지정해야 PR 병합 전 검증이 수행됩니다.
+# 'build-*' Job들은 PR 시 실행되지 않으므로 필수로 지정하면 안 됩니다.
 # =============================================================================
 
 jobs:
@@ -55,14 +56,16 @@ jobs:
         run: ./gradlew check ktlintCheck --build-cache
 
   # =============================================================================
-  # Job 2: Non-Apple 플랫폼 빌드 (모든 관련 트리거에서 실행)
+  # Job 2: Non-Apple 플랫폼 빌드 (릴리스 시에만 실행)
   # =============================================================================
   build-non-apple:
     name: Build Non-Apple (Linux, Android, Windows)
+    # 태그 푸시 또는 수동 실행 시에만 실행
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    needs: lint-test # lint-test Job 성공 후 실행
-    # [수정] 릴리스 시에만 아티팩트가 필요하므로 조건부 Output 설정
+    needs: lint-test # lint-test Job 성공 후 실행 (릴리스 시나리오)
     outputs:
+      # Output은 릴리스 시에만 의미 있으므로 조건 유지
       artifact-name: ${{ (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && 'non-apple-binaries' || '' }}
     steps:
       - name: Checkout code
@@ -77,10 +80,10 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          # main/tag 아니면 캐시 쓰기 방지 (PR은 읽기만)
-          # main/tag 아니면 쓰기 방지
-          cache-read-only: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+          # 릴리스 시에는 캐시 쓰기 허용
+          cache-read-only: false
 
+      # 릴리스 빌드 실행
       - name: Build Non-Apple targets
         run: |
           ./gradlew --build-cache \
@@ -91,9 +94,8 @@ jobs:
                     #:library:linkReleaseSharedMingwX64 \ # Windows 대상 기본 테스크
                     # 필요시 assembleRelease 등 다른 태스크 사용
 
-      # [수정] 릴리스 시에만 아티팩트 업로드 (태그 푸시 또는 수동 실행 시)
+      # 아티팩트 업로드 (이 Job은 릴리스 시에만 실행되므로 if 조건 불필요)
       - name: Upload Non-Apple build artifacts for release
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: non-apple-binaries # Output과 일치
@@ -102,14 +104,16 @@ jobs:
             library/build/bin/androidNativeArm64/releaseShared/
             library/build/bin/androidNativeX64/releaseShared/
             library/build/bin/windowsX64/releaseShared/
-            #library/build/bin/mingwX64/releaseShared/ # 🚫
+            #library/build/bin/mingwX64/releaseShared/
           retention-days: 1
 
   # =============================================================================
-  # Job 3: Apple 플랫폼 빌드 (모든 관련 트리거에서 실행)
+  # Job 3: Apple 플랫폼 빌드 (릴리스 시에만 실행)
   # =============================================================================
   build-apple:
     name: Build Apple (macOS, iOS)
+    # [수정] 태그 푸시 또는 수동 실행 시에만 실행
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: macos-latest
     needs: lint-test
     outputs:
@@ -132,8 +136,9 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+          cache-read-only: false
 
+      # 릴리스 빌드 실행
       - name: Build Apple targets
         run: |
           ./gradlew --build-cache \
@@ -143,9 +148,8 @@ jobs:
                     :library:linkReleaseSharedIosX64 \
                     #:library:linkReleaseSharedIosSimulatorArm64 # 필요 시 추가
 
-      # [수정] 릴리스 시에만 아티팩트 업로드
+      # 아티팩트 업로드 (이 Job은 릴리스 시에만 실행되므로 if 조건 불필요)
       - name: Upload Apple build artifacts for release
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: apple-binaries # Output과 일치
@@ -162,10 +166,10 @@ jobs:
   # =============================================================================
   package-release:
     name: Package and Release
-    # [수정] 실행 조건 명확화: 태그 푸시 또는 수동 실행
+    # 실행 조건 유지 (태그 푸시 또는 수동 실행)
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    # [수정] 빌드 Job 완료 후 실행
+    # 빌드 Job 완료 후 실행 (needs는 릴리스 시나리오에서만 의미 있음)
     needs: [build-non-apple, build-apple]
     permissions:
       contents: write # 릴리스 생성 권한
@@ -178,7 +182,6 @@ jobs:
       # 버전 결정 (스크립트 실행)
       - name: Determine Version
         id: version
-        # 이 Job은 태그/수동 실행 시에만 동작하므로 if 조건 불필요
         run: ./.github/workflows/scripts/github-determine-version.sh
         env:
           WORKFLOW_INPUT_VERSION: ${{ github.event.inputs.version }}
@@ -196,9 +199,6 @@ jobs:
         run: |
           PKG_NAME="platform-binaries-${{ steps.version.outputs.version_num }}"
           ZIP_FILENAME="${PKG_NAME}.zip"
-          # 다운로드된 아티팩트 내용물만 압축 (최상위 폴더 제외 고려)
-          # 예: find downloaded-artifacts -mindepth 2 -type f -print | zip ../${ZIP_FILENAME} -@
-          # 또는 간단하게 폴더 전체 압축
           cd downloaded-artifacts
           zip -r "../${ZIP_FILENAME}" .
           cd ..
@@ -213,7 +213,6 @@ jobs:
           name: Release ${{ steps.version.outputs.version_num }}
           draft: false
           prerelease: false
-          # 업로드 파일 경로 수정 (압축 파일 + 다운로드된 아티팩트 내 파일)
           files: |
             ${{ steps.zip.outputs.zip_name }}
             downloaded-artifacts/non-apple-binaries/**/*.so
