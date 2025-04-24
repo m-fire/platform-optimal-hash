@@ -21,8 +21,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: '릴리스 버전 (예: 1.0.0). 태그 이름에서 자동 추출되므로 보통 비워둡니다.'
-        required: false
+        description: 'Release 버전 입력(1.0.0 : 숫자,점 구성)'
+        required: true
         default: ''
 
 # =============================================================================
