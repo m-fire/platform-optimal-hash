@@ -87,7 +87,7 @@ jobs:
                     :library:linkReleaseSharedLinuxX64 \
                     :library:linkReleaseSharedAndroidNativeArm64 \
                     :library:linkReleaseSharedAndroidNativeX64 \
-                    :library:linkReleaseSharedMingwX64 \ # (Windows 대상 기본 테스크)
+                    :library:linkReleaseSharedMingwX64 \ # Windows 대상 기본 테스크
                     #:library:linkReleaseSharedWindowsX64 \ # 🚫 커스텀 네이밍 테스크
                     # 필요시 assembleRelease 등 다른 태스크 사용
 
