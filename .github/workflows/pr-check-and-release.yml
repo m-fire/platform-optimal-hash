@@ -89,7 +89,7 @@ jobs:
                     #:library:linkReleaseSharedMingwX64 \ # (Windows 대상 기본 테스크)
                     :library:linkReleaseSharedWindowsX64 \
                     # 필요시 assembleRelease 등 다른 태스크 사용
-                    --build-cache
+                    --build-cache \
 
       # [수정] 릴리스 시에만 아티팩트 업로드 (태그 푸시 또는 수동 실행 시)
       - name: Upload Non-Apple build artifacts for release
@@ -140,7 +140,7 @@ jobs:
                     :library:linkReleaseSharedIosArm64 \
                     :library:linkReleaseSharedIosX64 \
                     #:library:linkReleaseSharedIosSimulatorArm64 # 필요 시 추가
-                    --build-cache
+                    --build-cache \
 
       # [수정] 릴리스 시에만 아티팩트 업로드
       - name: Upload Apple build artifacts for release
