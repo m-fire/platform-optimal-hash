@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release 버전 입력(1.0.0 : 숫자,점 구성)'
+        description: 'Release 버전입력 필수(1.0.0 : 숫자,점 구성)'
         required: true
         default: ''
 
@@ -197,13 +197,22 @@ jobs:
         with:
           path: downloaded-artifacts # 모든 아티팩트를 이 폴더 하위에 받음
 
-      # Zip 아카이브 생성
+      # 스크립트 실행 권한 부여 (prepare-release-assets.sh 추가되었으므로)
+      - name: Ensure release script is executable
+        run: chmod +x ./.github/workflows/scripts/prepare-release-assets.sh
+
+      # 릴리스 에셋 준비 스크립트 실행
+      - name: Prepare Release Assets (Rename binaries)
+        run: ./.github/workflows/scripts/prepare-release-assets.sh downloaded-artifacts release-assets
+
+      # [수정] Zip 아카이브 생성 대상 변경
       - name: Create zip archive
         id: zip
         run: |
           PKG_NAME="platform-binaries-${{ steps.version.outputs.version_num }}"
           ZIP_FILENAME="${PKG_NAME}.zip"
-          cd downloaded-artifacts
+          # release-assets 폴더를 압축
+          cd release-assets
           zip -r "../${ZIP_FILENAME}" .
           cd ..
           echo "Zip file created: ${ZIP_FILENAME}"
@@ -217,12 +226,10 @@ jobs:
           name: Release ${{ steps.version.outputs.version_num }}
           draft: false
           prerelease: false
+          # 업로드 파일 경로 변경 (Zip 파일 + release-assets 폴더 내 파일)
           files: |
             ${{ steps.zip.outputs.zip_name }}
-            downloaded-artifacts/non-apple-binaries/**/*.so
-            downloaded-artifacts/non-apple-binaries/**/*.dll
-            downloaded-artifacts/apple-binaries/**/*.dylib
-          # 릴리스 노트 생성
+            release-assets/* # 이름이 통일된 최종 바이너리 파일들 업로드
           generate_release_notes: true
           body: |
             ## Platform binary release ${{ steps.version.outputs.version_tag }}
