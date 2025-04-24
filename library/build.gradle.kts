@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "io.stormi.support.platform.collection.hash"
-version = "1.0.0"
+version = "0.0.1"
 
 val binaryFilename: String by properties
 
