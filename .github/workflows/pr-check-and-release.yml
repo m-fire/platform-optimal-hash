@@ -1,4 +1,4 @@
-# 워크플로우 이름
+C# 워크플로우 이름
 name: PR Check & Release on Tag
 
 # 워크플로우 트리거 조건
@@ -50,7 +50,7 @@ jobs:
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v4C
 
       - name: Run Checks & Linters
         run: ./gradlew check ktlintCheck --build-cache
@@ -178,6 +178,10 @@ jobs:
       # 코드 체크아웃 (버전 결정 스크립트 등 실행 위해)
       - name: Checkout code
         uses: actions/checkout@v4
+
+      # 모든 쉘 스크립트 실행권한 보장
+      - name: Ensure all scripts are executable
+        run: chmod +x ./.github/workflows/scripts/*.sh
 
       # 버전 결정 (스크립트 실행)
       - name: Determine Version
