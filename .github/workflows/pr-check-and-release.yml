@@ -179,6 +179,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 모든 쉘 스크립트 실행권한 보장
+      - name: Ensure all scripts are executable
+        run: chmod +x ./.github/workflows/scripts/*.sh
+
       # 버전 결정 (스크립트 실행)
       - name: Determine Version
         id: version
