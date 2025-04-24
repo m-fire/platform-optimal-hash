@@ -87,8 +87,8 @@ jobs:
                     :library:linkReleaseSharedLinuxX64 \
                     :library:linkReleaseSharedAndroidNativeArm64 \
                     :library:linkReleaseSharedAndroidNativeX64 \
-                    #:library:linkReleaseSharedMingwX64 \ # (Windows 대상 기본 테스크)
-                    :library:linkReleaseSharedWindowsX64 \
+                    :library:linkReleaseSharedMingwX64 \ # (Windows 대상 기본 테스크)
+                    #:library:linkReleaseSharedWindowsX64 \ # 🚫 커스텀 네이밍 테스크
                     # 필요시 assembleRelease 등 다른 태스크 사용
 
       # [수정] 릴리스 시에만 아티팩트 업로드 (태그 푸시 또는 수동 실행 시)
@@ -101,7 +101,8 @@ jobs:
             library/build/bin/linuxX64/releaseShared/
             library/build/bin/androidNativeArm64/releaseShared/
             library/build/bin/androidNativeX64/releaseShared/
-            library/build/bin/windowsX64/releaseShared/
+            # library/build/bin/windowsX64/releaseShared/ # 🚫
+            library/build/bin/mingwX64/releaseShared/
           retention-days: 1
 
   # =============================================================================
