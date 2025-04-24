@@ -1,0 +1,231 @@
+# 워크플로우 이름
+name: PR Check & Release on Tag
+
+# 워크플로우 트리거 조건
+on:
+  # PR 시: main 브랜치 대상 Pull Request
+  pull_request:
+    branches: [ main ]
+    paths:
+     - '.github/**' # 워크플로우 변경 감지
+     - 'library/**' # src 변경 감지
+     - 'gradle.properties' # 바이너리명 변경 감지
+     - 'gradle/**' # Gradle Wrapper 변경 감지
+
+  # 릴리스 시: v* 태그 변경감지 푸시 (릴리스 버저닝)
+  push:
+    tags:
+      - 'v*' # 시맨틱 버전 태그 (예: v1.0.0, v1.2.3-rc1)
+
+  # 수동 실행 (릴리스 목적)
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '릴리스 버전 (예: 1.0.0). 태그 이름에서 자동 추출되므로 보통 비워둡니다.'
+        required: false
+        default: ''
+
+# =============================================================================
+# 중요: GitHub 저장소 설정에서 'main' 브랜치 보호 규칙(Branch Protection Rule)을
+# 설정하고, 아래 'lint-test', 'build-non-apple', 'build-apple' Job들을
+# 필수 상태 검사(Required status checks)로 지정해야 PR 병합 전 검증이 수행됩니다.
+# =============================================================================
+
+jobs:
+  # =============================================================================
+  # Job 1: 코드 린팅 및 테스트 (모든 관련 트리거에서 실행)
+  # =============================================================================
+  lint-test:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/gradle-build-action@v3
+
+      - name: Run Checks & Linters
+        run: ./gradlew check ktlintCheck --build-cache
+
+  # =============================================================================
+  # Job 2: Non-Apple 플랫폼 빌드 (모든 관련 트리거에서 실행)
+  # =============================================================================
+  build-non-apple:
+    name: Build Non-Apple (Linux, Android, Windows)
+    runs-on: ubuntu-latest
+    needs: lint-test # lint-test Job 성공 후 실행
+    # [수정] 릴리스 시에만 아티팩트가 필요하므로 조건부 Output 설정
+    outputs:
+      artifact-name: ${{ (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && 'non-apple-binaries' || '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          # main/tag 아니면 캐시 쓰기 방지 (PR은 읽기만)
+          # main/tag 아니면 쓰기 방지
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+
+      - name: Build Non-Apple targets
+        run: |
+          ./gradlew --build-cache \
+                    :library:linkReleaseSharedLinuxX64 \
+                    :library:linkReleaseSharedAndroidNativeArm64 \
+                    :library:linkReleaseSharedAndroidNativeX64 \
+                    :library:linkReleaseSharedWindowsX64 \
+                    #:library:linkReleaseSharedMingwX64 \ # Windows 대상 기본 테스크
+                    # 필요시 assembleRelease 등 다른 태스크 사용
+
+      # [수정] 릴리스 시에만 아티팩트 업로드 (태그 푸시 또는 수동 실행 시)
+      - name: Upload Non-Apple build artifacts for release
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: non-apple-binaries # Output과 일치
+          path: |
+            library/build/bin/linuxX64/releaseShared/
+            library/build/bin/androidNativeArm64/releaseShared/
+            library/build/bin/androidNativeX64/releaseShared/
+            library/build/bin/windowsX64/releaseShared/
+            #library/build/bin/mingwX64/releaseShared/ # 🚫
+          retention-days: 1
+
+  # =============================================================================
+  # Job 3: Apple 플랫폼 빌드 (모든 관련 트리거에서 실행)
+  # =============================================================================
+  build-apple:
+    name: Build Apple (macOS, iOS)
+    runs-on: macos-latest
+    needs: lint-test
+    outputs:
+      artifact-name: ${{ (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch') && 'apple-binaries' || '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.2'
+
+      - name: Set up Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
+
+      - name: Build Apple targets
+        run: |
+          ./gradlew --build-cache \
+                    :library:linkReleaseSharedMacosArm64 \
+                    :library:linkReleaseSharedMacosX64 \
+                    :library:linkReleaseSharedIosArm64 \
+                    :library:linkReleaseSharedIosX64 \
+                    #:library:linkReleaseSharedIosSimulatorArm64 # 필요 시 추가
+
+      # [수정] 릴리스 시에만 아티팩트 업로드
+      - name: Upload Apple build artifacts for release
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-binaries # Output과 일치
+          path: |
+            library/build/bin/macosArm64/releaseShared/
+            library/build/bin/macosX64/releaseShared/
+            library/build/bin/iosArm64/releaseShared/
+            library/build/bin/iosX64/releaseShared/
+            #library/build/bin/iosSimulatorArm64/releaseShared # 필요 시 추가
+          retention-days: 1
+
+  # =============================================================================
+  # Job 4: 패키징 및 릴리스 (태그 푸시 또는 수동 실행 시에만 실행)
+  # =============================================================================
+  package-release:
+    name: Package and Release
+    # [수정] 실행 조건 명확화: 태그 푸시 또는 수동 실행
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    # [수정] 빌드 Job 완료 후 실행
+    needs: [build-non-apple, build-apple]
+    permissions:
+      contents: write # 릴리스 생성 권한
+
+    steps:
+      # 코드 체크아웃 (버전 결정 스크립트 등 실행 위해)
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 버전 결정 (스크립트 실행)
+      - name: Determine Version
+        id: version
+        # 이 Job은 태그/수동 실행 시에만 동작하므로 if 조건 불필요
+        run: ./.github/workflows/scripts/github-determine-version.sh
+        env:
+          WORKFLOW_INPUT_VERSION: ${{ github.event.inputs.version }}
+          WORKFLOW_GITHUB_REF: ${{ github.ref }}
+
+      # 빌드 아티팩트 다운로드
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts # 모든 아티팩트를 이 폴더 하위에 받음
+
+      # Zip 아카이브 생성
+      - name: Create zip archive
+        id: zip
+        run: |
+          PKG_NAME="platform-binaries-${{ steps.version.outputs.version_num }}"
+          ZIP_FILENAME="${PKG_NAME}.zip"
+          # 다운로드된 아티팩트 내용물만 압축 (최상위 폴더 제외 고려)
+          # 예: find downloaded-artifacts -mindepth 2 -type f -print | zip ../${ZIP_FILENAME} -@
+          # 또는 간단하게 폴더 전체 압축
+          cd downloaded-artifacts
+          zip -r "../${ZIP_FILENAME}" .
+          cd ..
+          echo "Zip file created: ${ZIP_FILENAME}"
+          echo "zip_name=${ZIP_FILENAME}" >> $GITHUB_OUTPUT
+
+      # GitHub 릴리스 생성 및 에셋 업로드
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version_tag }}
+          name: Release ${{ steps.version.outputs.version_num }}
+          draft: false
+          prerelease: false
+          # 업로드 파일 경로 수정 (압축 파일 + 다운로드된 아티팩트 내 파일)
+          files: |
+            ${{ steps.zip.outputs.zip_name }}
+            downloaded-artifacts/non-apple-binaries/**/*.so
+            downloaded-artifacts/non-apple-binaries/**/*.dll
+            downloaded-artifacts/apple-binaries/**/*.dylib
+          # 릴리스 노트 생성
+          generate_release_notes: true
+          body: |
+            ## Platform binary release ${{ steps.version.outputs.version_tag }}
+            **Included Platforms:**
+            - Android (arm64, x64)
+            - iOS (arm64, x64)
+            - macOS (arm64, x64)
+            - Windows (x64)
+            - Linux (x64)
