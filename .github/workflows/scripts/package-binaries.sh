@@ -77,7 +77,7 @@ echo "------------------------------------------"
 
 # --- 플랫폼별 바이너리 탐색 및 복사 ---
 echo "빌드된 플랫폼 검색 및 처리 시작..."
-PLATFORMS=$(find "${BUILD_BIN_DIR}" -mindepth 1 -maxdepth 1 -type d -exec test -d '{}/releaseShared' \; -printf '%f\n')
+PLATFORMS=$(find "${BUILD_BIN_DIR}" -mindepth 1 -maxdepth 1 -type d -exec test -d '{}/releaseShared' \; -exec basename {} \; | sort)
 
 if [ -z "$PLATFORMS" ]; then
     echo "오류: ${BUILD_BIN_DIR} 하위에서 'releaseShared' 디렉토리를 포함하는 플랫폼 디렉토리를 찾을 수 없습니다." >&2
