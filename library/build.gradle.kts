@@ -5,7 +5,7 @@ plugins {
 group = "io.stormi.support.platform.collection.hash"
 version = "1.0.0"
 
-val libraryFilename = "optimal_hash"
+val binaryFilename: String by properties
 
 kotlin {
     applyDefaultHierarchyTemplate()
@@ -26,7 +26,7 @@ kotlin {
     ).apply {
         forEach { target ->
             // 빌드 후 생성될 플렛폼 별 라이브러리 파일명
-            target.binaries { sharedLib { baseName = libraryFilename } }
+            target.binaries { sharedLib { baseName = binaryFilename } }
         }
     }
 
