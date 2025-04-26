@@ -2,10 +2,12 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
 }
 
-group = "io.stormi.support.platform.collection.hash"
-version = "0.0.1"
-
+val libVersion: String by properties
 val binaryFilename: String by properties
+
+group = "io.stormi.support.platform.collection.hash"
+version = libVersion
+
 
 kotlin {
     applyDefaultHierarchyTemplate()
@@ -41,6 +43,9 @@ kotlin {
             dependencies {
                 // KMP Kotest 필수 의존성(
                 implementation(libs.kotlin.test)
+                implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.kotlin.test.annotations.common)
                 // 아직 KMP 에서 Kotest 미지원
                 // implementation(libs.kotest.framework.engine)
                 // implementation(libs.kotest.assertions.core)
