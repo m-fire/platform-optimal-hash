@@ -35,9 +35,23 @@ jobs:
     runs-on: ubuntu-latest # 이 Job은 Ubuntu에서 실행
 
     steps:
+      # ***** 수정: 로컬 재사용 워크플로우 사용 전에 코드 체크아웃 *****
+      - name: Checkout code
+        uses: actions/checkout@v4
+        # fetch-depth: 0 은 재사용 워크플로우 내에서 처리하므로 여기선 불필요할 수 있음.
+        # 필요 시 fetch-depth: 0 추가. (Get latest release tag 위해 필요)
+        with:
+          fetch-depth: 0 # 버전 비교를 위해 모든 태그/기록 필요
+
       # 1.1. 재사용 워크플로우를 사용하여 개발 환경 설정
       - name: Reusable Setup (Ubuntu)
         uses: ./.github/workflows/_reusable-setup.yml
+        # 'with' 블록은 재사용 워크플로우의 inputs에 값을 전달.
+        # fetch-depth는 checkout 단계에서 이미 처리했으므로,
+        # 재사용 워크플로우 내 checkout에서 다시 fetch-depth를 지정할 필요는 없음.
+        # 단, _reusable-setup.yml의 checkout 단계에서 fetch-depth 입력을 사용하지 않도록 수정하거나,
+        # 여기서 전달하지 않아도 되도록 _reusable-setup.yml의 기본값을 조정하는 것이 좋음.
+        # 여기서는 일단 fetch-depth: 0을 재사용 워크플로우에도 전달하는 것으로 유지.
         with:
           fetch-depth: 0 # 버전 비교를 위해 모든 태그/기록 필요
 
@@ -92,6 +106,10 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      # ***** 로컬 재사용 워크플로우 사용 전에 코드 체크아웃 *****
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       # 2.1. 재사용 워크플로우를 사용하여 개발 환경 설정 (Matrix 값 전달)
       - name: Reusable Setup (${{ matrix.os }})
         uses: ./.github/workflows/_reusable-setup.yml
@@ -99,8 +117,6 @@ jobs:
           setup-xcode: ${{ matrix.setup-xcode }}
           # xcode-version이 matrix에 정의되지 않은 경우 기본값('latest') 사용
           xcode-version: ${{ matrix.xcode-version || 'latest' }}
-          # 캐시 키 접두사를 OS별로 다르게 설정할 수도 있음 (선택 사항)
-          # cache-prefix: ${{ matrix.os }}
 
       # 2.2. Matrix에 정의된 빌드 스크립트 실행
       - name: Build targets for ${{ matrix.os }}
@@ -127,6 +143,10 @@ jobs:
       contents: write # GitHub 릴리스 생성 및 에셋 업로드를 위해 'contents' 쓰기 권한 필요
 
     steps:
+      # ***** 로컬 재사용 워크플로우 사용 전에 코드 체크아웃 *****
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       # 3.1. 재사용 워크플로우를 사용하여 개발 환경 설정 (Ubuntu)
       - name: Reusable Setup (Ubuntu)
         uses: ./.github/workflows/_reusable-setup.yml
