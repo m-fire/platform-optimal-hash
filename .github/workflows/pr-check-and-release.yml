@@ -55,12 +55,12 @@ jobs:
       # --- PR 시 버전 유효성 검증 ---
       - name: Get latest release tag
         id: get_latest_tag
-        if: github.event_name == 'pull_request' # PR 시에만 실행
+        if: ${{ github.event_name == 'pull_request' }} # PR 시에만 실행
         uses: actions-ecosystem/action-get-latest-tag@v1
         with: { semver_only: true, with_initial_version: true, initial_version: "0.0.0" }
 
       - name: Validate version increment vs latest release
-        if: github.event_name == 'pull_request'
+        if: ${{ github.event_name == 'pull_request' }}
         run: ./.github/workflows/scripts/validate-version.sh
         env:
           # 스크립트에 최신 태그 전달
@@ -72,7 +72,7 @@ jobs:
 
   build-non-apple:
     name: Build Non-Apple (Linux, Android, Windows)
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     needs: lint-test
     outputs: { artifact-name: 'non-apple-binaries' }
@@ -97,7 +97,7 @@ jobs:
 
   build-apple:
     name: Build Apple (macOS, iOS)
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     runs-on: macos-latest
     needs: lint-test
     outputs: { artifact-name: 'apple-binaries' }
@@ -127,7 +127,7 @@ jobs:
   # =============================================================================
   package-release:
     name: Package and Release
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     needs: [build-non-apple, build-apple]
     permissions: { contents: write }
@@ -145,7 +145,7 @@ jobs:
         run: ./.github/workflows/scripts/get-version-from-properties.sh
 
       - name: Validate Tag matches from gradle.properties `libVersion`
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+        if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') }}
         run: ./.github/workflows/scripts/validate-tag.sh
         env:
           INPUT_PUSHED_TAG: ${{ github.ref_name }}
