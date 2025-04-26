@@ -1,4 +1,4 @@
-# 워크플로우 이름: PR 검사 및 태그 기반 릴리스
+# PR 검사 및 태그 기반 릴리스
 name: PR Check & Release on Tag
 
 # 워크플로우 트리거 조건
@@ -7,12 +7,12 @@ on:
   pull_request:
     branches: [ main ]
     paths: # 특정 경로 변경 시에만 트리거
-     - '.github/**' # 워크플로우 또는 스크립트 변경
-     - 'library/**' # 라이브러리 소스 코드 변경
-     - 'gradle/**' # Gradle 래퍼 또는 의존성 관련 파일 변경
-     - 'gradle.properties' # 프로젝트 버전 등 속성 변경
-     - 'build.gradle.kts' # 빌드 스크립트 변경
-     - '*.gradle.kts' # 루트 또는 서브모듈 빌드 스크립트 변경
+      - '.github/**' # 워크플로우 또는 스크립트 변경
+      - 'library/**' # 라이브러리 소스 코드 변경
+      - 'gradle/**' # Gradle 래퍼 또는 의존성 관련 파일 변경
+      - 'gradle.properties' # 프로젝트 버전 등 속성 변경
+      - 'build.gradle.kts' # 빌드 스크립트 변경
+      - '*.gradle.kts' # 루트 또는 서브모듈 빌드 스크립트 변경
 
   # 2. Push: 'v'로 시작하는 태그 푸시 시 (릴리스 목적)
   push:

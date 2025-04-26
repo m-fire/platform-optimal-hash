@@ -1,0 +1,60 @@
+# .github/workflows/publish-library.yml
+# 재사용 가능한 Maven 중앙 저장소 배포 워크플로우
+name: Publish Library to Maven Central
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: '게시할 버전'
+        required: true
+        type: string
+      sonatype-profile:
+        description: 'Sonatype 프로필 ID'
+        required: true
+        type: string
+    secrets:
+      OSSRH_USERNAME:
+        required: true
+      OSSRH_PASSWORD:
+        required: true
+      GPG_PRIVATE_KEY:
+        required: true
+      GPG_PASSPHRASE:
+        required: true
+
+jobs:
+  publish:
+    name: Publish to Maven Central
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      # GPG 키 설정
+      - name: Setup GPG
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | base64 --decode > private.key
+          gpg --batch --import private.key
+          rm private.key
+
+      # Gradle을 사용한 게시
+      - name: Publish with Gradle
+        run: |
+          ./gradlew publish \
+            -Pversion=${{ inputs.version }} \
+            -PsonatypeProfileId=${{ inputs.sonatype-profile }} \
+            -PossrhUsername=${{ secrets.OSSRH_USERNAME }} \
+            -PossrhPassword=${{ secrets.OSSRH_PASSWORD }} \
+            -Psigning.keyId=${GPG_KEY_ID} \
+            -Psigning.password=${{ secrets.GPG_PASSPHRASE }} \
+            -Psigning.secretKeyRingFile=~/secring.gpg
+        env:
+          GPG_KEY_ID: ${{ steps.gpg-setup.outputs.keyid }}

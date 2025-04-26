@@ -1,0 +1,107 @@
+# .github/workflows/release.yml
+# KMP 라이브러리 릴리즈를 위한 메인 워크플로우
+name: Release KMP Native Libraries
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '릴리즈 버전 (예: 1.0.0)'
+        required: true
+        type: string
+      releaseTitle:
+        description: '릴리즈 제목 (예: Major Release v1.0.0)'
+        required: true
+        type: string
+      releaseNotes:
+        description: '릴리즈 노트 (마크다운 지원)'
+        required: false
+        type: string
+      draft:
+        description: '드래프트 릴리즈로 생성'
+        required: false
+        type: boolean
+        default: true
+      prerelease:
+        description: '프리릴리즈로 표시'
+        required: false
+        type: boolean
+        default: false
+      publishToMavenCentral:
+        description: 'Maven Central에 게시'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  # Android 라이브러리 빌드
+  build-android:
+    uses: _build-library.yml
+    with:
+      platform: android
+      gradle-task: assembleAndroidRelease
+      artifact-name: android-library
+      artifact-path: library/build/outputs/aar/*.aar
+
+  # iOS 라이브러리 빌드
+  build-ios:
+    uses: _build-library.yml
+    with:
+      platform: ios
+      gradle-task: packForXcode
+      artifact-name: ios-library
+      artifact-path: library/build/xcode-frameworks/**/*.framework
+
+  # Windows 라이브러리 빌드
+  build-windows:
+    uses: _build-library.yml
+    with:
+      platform: windows
+      gradle-task: linkReleaseWindowsX64
+      artifact-name: windows-library
+      artifact-path: library/build/bin/windowsX64/**/*.dll
+
+  # macOS 라이브러리 빌드
+  build-macos:
+    uses: _build-library.yml
+    with:
+      platform: macos
+      gradle-task: linkReleaseMacosX64
+      artifact-name: macos-library
+      artifact-path: library/build/bin/macosX64/**/*.dylib
+
+  # Linux 라이브러리 빌드
+  build-linux:
+    uses: _build-library.yml
+    with:
+      platform: linux
+      gradle-task: linkReleaseLinuxX64
+      artifact-name: linux-library
+      artifact-path: library/build/bin/linuxX64/**/*.so
+
+  # 릴리즈 생성
+  create-release:
+    needs: [build-android, build-ios, build-windows, build-macos, build-linux]
+    uses: _release-library.yml
+    with:
+      release-version: ${{ github.event.inputs.version }}
+      release-title: ${{ github.event.inputs.releaseTitle }}
+      release-notes: ${{ github.event.inputs.releaseNotes }}
+      draft: ${{ github.event.inputs.draft }}
+      prerelease: ${{ github.event.inputs.prerelease }}
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Maven Central에 게시 (선택 사항)
+  publish-maven:
+    if: ${{ github.event.inputs.publishToMavenCentral == 'true' }}
+    needs: create-release
+    uses: _publish-library.yml
+    with:
+      version: ${{ github.event.inputs.version }}
+      sonatype-profile: io.example.kmp
+    secrets:
+      OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+      OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+      GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
