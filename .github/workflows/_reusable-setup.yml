@@ -1,33 +1,89 @@
+# 워크플로우 이름: 재사용 가능한 설정 워크플로우
 name: Reusable Setup
+
+# 워크플로우 호출 트리거 정의
 on:
   workflow_call:
     inputs:
-      fetch-depth: { type: number, default: 0 }
-      java-version: { type: string, default: '17' }
-      java-distribution: { type: string, default: 'temurin' }
-      setup-xcode: { type: boolean, default: false } # macOS 빌드 시 필요
-      xcode-version: { type: string, default: 'latest' }
+      fetch-depth:
+        description: '체크아웃 시 가져올 커밋 기록 깊이. 0은 전체 기록.'
+        type: number
+        required: false
+        default: 0
+      java-version:
+        description: '설치할 Java 버전'
+        type: string
+        required: false
+        default: '17'
+      java-distribution:
+        description: '설치할 Java 배포판 (e.g., temurin, zulu)'
+        type: string
+        required: false
+        default: 'temurin'
+      setup-xcode:
+        description: 'macOS 빌드를 위해 Xcode 설정 여부'
+        type: boolean
+        required: false
+        default: false
+      xcode-version:
+        description: '설치할 Xcode 버전 (setup-xcode가 true일 경우)'
+        type: string
+        required: false
+        default: 'latest'
+      # 캐시 키 접두사 (필요 시 호출 워크플로우에서 전달 가능)
+      # cache-prefix:
+      #   description: '캐시 키에 사용할 접두사 (OS별 구분 등에 사용)'
+      #   type: string
+      #   required: false
+      #   default: ${{ runner.os }} # 기본값은 실행 환경 OS
 
 jobs:
   setup:
-    # setup-xcode 입력값에 따라 적절한 러너 선택
+    # 입력값에 따라 적절한 실행 환경 선택 (macOS 또는 Ubuntu)
     runs-on: ${{ inputs.setup-xcode && 'macos-latest' || 'ubuntu-latest' }}
     steps:
+      # 1. 코드 체크아웃
       - name: Checkout code
         uses: actions/checkout@v4
-        with: { fetch-depth: ${{ inputs.fetch-depth }} }
+        with:
+          fetch-depth: ${{ inputs.fetch-depth }}
 
+      # 2. Java (JDK) 설정
       - name: Set up Java
         uses: actions/setup-java@v4
-        with: { distribution: ${{ inputs.java-distribution }}, java-version: ${{ inputs.java-version }} }
+        with:
+          distribution: ${{ inputs.java-distribution }}
+          java-version: ${{ inputs.java-version }}
 
+      # 3. Xcode 설정 (macOS 빌드 시)
       - name: Set up Xcode (if applicable)
-        if: inputs.setup-xcode
+        if: inputs.setup-xcode # setup-xcode 입력이 true일 때만 실행
         uses: maxim-lobanov/setup-xcode@v1
-        with: { xcode-version: ${{ inputs.xcode-version }} }
+        with:
+          xcode-version: ${{ inputs.xcode-version }}
 
+      # 4. Gradle 캐시 설정 (Gradle 설정 전에 위치)
+      # ~/.gradle/caches 와 ~/.gradle/wrapper 디렉토리를 캐싱
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          # 캐시 키: 실행 OS, gradle.properties, build.gradle.kts 파일 해시 기반
+          # 의존성 파일 변경 시 캐시 무효화
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties') }}-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties') }}
+          # 이전 캐시 복원 전략: 키가 정확히 일치하지 않으면 접두사(OS) 기준으로 최신 캐시 복원 시도
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # 5. Gradle 설정 (캐시 설정 후 실행)
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        # setup-gradle 액션은 내부적으로도 캐시를 관리할 수 있으나,
+        # actions/cache를 명시적으로 사용하여 캐시 동작을 더 명확히 제어.
 
+      # 6. 스크립트 실행 권한 부여
+      # .github/scripts 디렉토리 내 모든 .sh 파일에 실행 권한 부여
       - name: Ensure all scripts are executable
-        run: chmod +x ./.github/workflows/scripts/*.sh
+        run: chmod +x ./.github/scripts/*.sh
