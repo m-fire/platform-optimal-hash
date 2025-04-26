@@ -1,0 +1,33 @@
+name: Reusable Setup
+on:
+  workflow_call:
+    inputs:
+      fetch-depth: { type: number, default: 0 }
+      java-version: { type: string, default: '17' }
+      java-distribution: { type: string, default: 'temurin' }
+      setup-xcode: { type: boolean, default: false } # macOS 빌드 시 필요
+      xcode-version: { type: string, default: 'latest' }
+
+jobs:
+  setup:
+    # setup-xcode 입력값에 따라 적절한 러너 선택
+    runs-on: ${{ inputs.setup-xcode && 'macos-latest' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with: { fetch-depth: ${{ inputs.fetch-depth }} }
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with: { distribution: ${{ inputs.java-distribution }}, java-version: ${{ inputs.java-version }} }
+
+      - name: Set up Xcode (if applicable)
+        if: inputs.setup-xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with: { xcode-version: ${{ inputs.xcode-version }} }
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Ensure all scripts are executable
+        run: chmod +x ./.github/workflows/scripts/*.sh
