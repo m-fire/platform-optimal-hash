@@ -1,0 +1,70 @@
+# .github/actions/publish-library/action.yml
+# 라이브러리 퍼블리시 복합 액션 (Gradle 사용)
+name: 'Publish Library to Maven Central'
+description: 'Sets up GPG and publishes the library using Gradle.'
+inputs:
+  sonatype-profile: # 입력은 현재 사용되지 않으나, 향후 확장 위해 유지 가능
+    description: 'Sonatype 프로필 ID (그룹 ID)'
+    required: true
+  # Gradle 환경 변수 설정을 위한 입력 추가 가능
+  ossrh-username-env:
+    description: 'OSSRH 사용자명 환경 변수 이름'
+    required: false
+    default: 'OSSRH_USERNAME' # 시크릿 이름과 동일하게
+  ossrh-password-env:
+    description: 'OSSRH 비밀번호 환경 변수 이름'
+    required: false
+    default: 'OSSRH_PASSWORD'
+  gpg-key-env:
+    description: 'GPG 개인 키 환경 변수 이름'
+    required: false
+    default: 'GPG_PRIVATE_KEY'
+  gpg-passphrase-env:
+    description: 'GPG 비밀번호 환경 변수 이름'
+    required: false
+    default: 'GPG_PASSPHRASE'
+
+# 입력 시크릿 정의
+# inputs 대신 secrets 블록 사용 권장 (GitHub Actions 권장 사항)
+# secrets:
+#   OSSRH_USERNAME:
+#     required: true
+#   OSSRH_PASSWORD:
+#     required: true
+#   GPG_PRIVATE_KEY:
+#     required: true
+#   GPG_PASSPHRASE:
+#     required: true
+
+runs:
+  using: "composite"
+  steps:
+    # 1. GPG 키 설정
+    - name: Setup GPG Key
+      shell: bash
+      run: |
+        # 시크릿 값은 환경 변수를 통해 전달받음
+        gpg_private_key_data="${{ env[inputs.gpg-key-env] }}"
+        if [[ -z "$gpg_private_key_data" ]]; then
+          echo "::error::GPG Private Key secret is not set or empty."
+          exit 1
+        fi
+        echo "$gpg_private_key_data" | base64 --decode | gpg --batch --import
+      # 환경 변수 설정: GPG_PASSPHRASE 는 Gradle 실행 시 전달
+      env:
+        ${{ inputs.gpg-key-env }}: ${{ secrets.GPG_PRIVATE_KEY }} # 시크릿 값을 환경 변수로
+
+    # 2. Gradle publish 태스크 실행
+    - name: Publish to Maven Central
+      shell: bash
+      run: ./gradlew publish --build-cache
+      env:
+        # Gradle이 읽을 환경 변수 설정 (Maven Publish 플러그인 설정과 일치해야 함)
+        ORG_GRADLE_PROJECT_signingKey: ${{ secrets.GPG_PRIVATE_KEY }} # 키 자체 전달 필요 시
+        ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.GPG_PASSPHRASE }}
+        ORG_GRADLE_PROJECT_ossrhUsername: ${{ secrets.OSSRH_USERNAME }}
+        ORG_GRADLE_PROJECT_ossrhPassword: ${{ secrets.OSSRH_PASSWORD }}
+        # 입력으로 받은 환경 변수 이름 사용 시 (덜 일반적)
+        #${{ inputs.gpg-passphrase-env }}: ${{ secrets.GPG_PASSPHRASE }}
+        #${{ inputs.ossrh-username-env }}: ${{ secrets.OSSRH_USERNAME }}
+        #${{ inputs.ossrh-password-env }}: ${{ secrets.OSSRH_PASSWORD }}
