@@ -1,0 +1,70 @@
+# .github/workflows/validate-and-update-version.yml
+# 워크플로우 디스패치로 트리거되어 버전을 검증하고, 필요한 경우 main 브랜치의 gradle.properties를 업데이트 및 커밋함.
+name: Validate and Update Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '릴리즈할 버전 (예: 1.0.0, 1.1.0-M1). ./gradle.properties 의(libVersion) 또는 최신 태그보다 크거나 같아야 함.'
+        required: true
+        type: string
+
+jobs:
+  validate-and-update:
+    name: Validate Input Version and Update gradle.properties
+    runs-on: ubuntu-latest
+    # Job 레벨에서 파일 쓰기 및 커밋 권한 부여
+    permissions:
+      contents: write
+
+    steps:
+      # 1. main 브랜치 체크아웃 (태그 기록 포함)
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: 'main' # 항상 main 브랜치를 대상으로 함
+          fetch-depth: 0 # 태그 비교를 위해 전체 기록 가져오기
+
+      # 2. Python 환경 설정 (스크립트 실행 및 packaging 라이브러리 설치)
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: pip install packaging # 버전 비교를 위한 라이브러리 설치
+
+      # 3. 버전 검증 및 업데이트 스크립트 실행
+      - name: Validate version and update gradle.properties if needed
+        id: validation_script
+        run: python .github/scripts/validate_version_consistency.py --expected-version "${{ github.event.inputs.version }}"
+        # 스크립트 실패 시 워크플로우 자동 중단 (non-zero exit code)
+
+      # 4. 변경 사항 커밋 (스크립트 실행 결과 updated=true 일 경우)
+      - name: Commit and push changes
+        if: steps.validation_script.outputs.updated == 'true'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: Update libVersion to ${{ github.event.inputs.version }}" # 커밋 메시지
+          commit_user_name: "Release Bot" # 커밋 사용자 이름
+          commit_user_email: "github-actions[bot]@users.noreply.github.com" # 커밋 사용자 이메일
+          commit_options: '--no-verify' # 커밋 훅(hook) 건너뛰기
+          file_pattern: 'gradle.properties' # gradle.properties 파일만 커밋 대상
+          push_options: '--force-with-lease' # 필요 시 주의하여 사용 (기존 main 변경사항 보호)
+          skip_fetch: true # 이미 fetch 했으므로 건너뛰기
+          skip_checkout: true # 이미 checkout 했으므로 건너뛰기
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 액션 내에서 사용할 토큰
+
+      # 5. 업데이트 결과 알림 (선택 사항)
+      - name: Notify update result
+        if: always() # 이전 스텝 성공/실패 여부와 관계없이 실행
+        run: |
+          if [[ "${{ steps.validation_script.outputs.updated }}" == "true" ]]; then
+            echo "✅ gradle.properties updated and committed by Release Bot."
+          elif [[ "${{ steps.validation_script.outputs.updated }}" == "false" ]]; then
+            echo "ℹ️ No update needed for gradle.properties."
+          else
+            # 스크립트 실패 시 이 메시지는 보통 보이지 않음 (Job 실패)
+            echo "❌ Version validation or update script failed."
+          fi

@@ -1,0 +1,93 @@
+# .github/workflows/pr-check.yml
+# Pull Request 검증 및 테스트 워크플로우 (Composite Actions 사용)
+name: PR Check and Validation
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '.github/**'
+      - 'library/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - '*.gradle.kts'
+  workflow_dispatch:
+
+jobs:
+  # =============================================================================
+  # Job 1: 코드 린팅 및 기본 테스트 (Ubuntu)
+  # =============================================================================
+  validate:
+    name: Lint and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1.1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 1.2. 환경 설정
+      - name: Setup Development Environment (Ubuntu)
+        uses: ./.github/actions/setup-environment
+        with:
+          java-version: '17'
+
+      # 1.3. 코드 검사, 린터 및 단위 테스트 실행
+      - name: Run Checks, Linters and Unit Tests
+        run: ./gradlew check --build-cache
+
+  # =============================================================================
+  # Job 2: GitHub 스크립트 Python 테스트
+  # =============================================================================
+  test-gh-scripts:
+    name: Test Python GitHub Scripts
+    needs: validate # 'validate' Job 이후 실행
+    runs-on: ubuntu-latest
+
+    steps:
+      # 2.1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2.2. 환경 설정 (Composite Action 사용 - Python 포함)
+      # setup-environment 액션이 Python 설정을 지원해야 함
+      - name: Setup Development Environment (Python)
+        uses: ./.github/actions/setup-environment
+        with:
+          # setup-environment 액션이 Python 설치/버전 지정을 지원하는지 확인 필요
+          setup-python: 'true'
+          python-version: '3.10' # 스크립트와 호환되는 Python 버전 명시
+
+      # 2.3. Python 테스트 실행
+      # .github/scripts 디렉토리 내의 모든 test_*.py 파일을 실행
+      - name: Run Python Tests
+        run: python -m unittest discover .github/scripts
+
+  # =============================================================================
+  # Job 3: Apple 타겟 빌드 테스트 (macOS)
+  # =============================================================================
+  test-build-apple:
+    name: Test Build (Apple Targets)
+    needs: test-gh-scripts # 'test-gh-scripts' Job 이후 실행
+    runs-on: macos-latest
+
+    steps:
+      # 3.1. 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 3.2. 환경 설정 (Composite Action 사용, Xcode 활성화)
+      - name: Setup Development Environment (macOS)
+        uses: ./.github/actions/setup-environment
+        with:
+          java-version: '17'
+          setup-xcode: 'true'
+
+      # 3.3. Apple 관련 모든 타겟 빌드 실행
+      - name: Build Apple Targets
+        run: |
+          ./gradlew --build-cache \
+            linkReleaseSharedMacosX64 \
+            linkReleaseSharedMacosArm64 \
+            linkReleaseSharedIosX64 \
+            linkReleaseSharedIosArm64 \
