@@ -761,7 +761,6 @@ doc/api/
 .idea
 
 # Miscellaneous
-*.pyc
 *.swp
 .atom/
 .buildlog/
@@ -775,6 +774,9 @@ migrate_working_dir/
 
 ### Python template
 # Byte-compiled / optimized / DLL files
+*.pyc
+*.pyo
+*.pytest_cache/
 __pycache__/
 *.py[cod]
 *$py.class

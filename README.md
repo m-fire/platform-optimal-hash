@@ -1,6 +1,7 @@
 # Platform Optimal Hash
 
-논문 "Optimal Range for Unordered Open Addressing" 의 해싱 기법을 AI 분석을 통해 네이티브 함수 구현.
+논문 "[Optimal Bounds for Open Addressing Without Reordering](https://arxiv.org/abs/2501.02305)" 의 해싱 기법을 AI 분석을 통해
+네이티브 함수 구현.
 
 - 해시 테이블 및 기타 데이터 구조에서 균일한 해싱
   - Tabulation Hashing
@@ -73,8 +74,3 @@ fun main() {
 - Kotlin: 2.1.20
 - Gradle: 8.9.1
 - Java: 17
-
-## 논문
-
-- Martin Farach-Colton, Andrew Krapivin, William
-  Kuszmaul의 ["Optimal Bounds for Open Addressing Without Reordering"](https://arxiv.org/abs/2501.02305) 연구를 기반으로 합니다.
