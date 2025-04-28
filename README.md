@@ -1,4 +1,5 @@
 # Platform Optimal Hash
+**Note: This project is an experimental implementation and should be used with caution.**
 
 논문 "[Optimal Bounds for Open Addressing Without Reordering](https://arxiv.org/abs/2501.02305)" 의 해싱 기법을 AI 분석을 통해
 네이티브 함수 구현.
