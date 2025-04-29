@@ -4,28 +4,34 @@ name: 'Prepare Release Assets and Info'
 description: 'Downloads build artifacts, prepares release assets, generates release body and zip archive.'
 inputs:
   version:
-    description: '릴리스 버전 번호(ex: 1.0.0) 입력주의: 'v'접두사 제외입력'
+    description: '릴리스 버전 번호(1.0.0) 주의: "v" 접두사 제외'
     required: true
+    type: string
   python-version:
     description: '사용할 Python 버전'
     required: false
     default: '3.10'
+    type: string
   artifact-download-path:
     description: '빌드 아티팩트를 다운로드할 경로'
     required: false
     default: 'downloaded-artifacts' # 액션 실행 워크스페이스 내 경로
+    type: string
   prepared-assets-path:
     description: '준비된 릴리스 에셋을 저장할 경로'
     required: false
     default: 'release-assets' # 액션 실행 워크스페이스 내 경로
+    type: string
   output-body-file:
     description: '생성될 릴리스 본문 파일 경로'
     required: false
     default: 'release-body.md' # 액션 실행 워크스페이스 내 경로
+    type: string
   output-zip-file-pattern:
     description: '생성될 Zip 파일 이름 패턴 (버전 포함, 예: platform-binaries-{version}.zip)'
     required: false
-    default: 'platform-binaries-{version}.zip' # 액션 실행 워크스페이스 내 경로
+    default: 'platform-binaries-{version}.zip'
+    type: string
 
 outputs:
   body_path:
