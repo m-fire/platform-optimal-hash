@@ -96,9 +96,16 @@ class TestGenerateReleaseInfo(unittest.TestCase):
         outputs = self._read_github_output()
         expected_body_path_str = str(Path(body_path).resolve())
         expected_zip_path_str = str(Path(zip_path).resolve())
-        # 경로 비교 시 Windows 경로 구분자 문제 방지
-        self.assertIn(f"body_path={expected_body_path_str.replace('\\', '/')}", outputs.replace('\\\\', '\\').replace('\\', '/'))
-        self.assertIn(f"zip_path={expected_zip_path_str.replace('\\', '/')}", outputs.replace('\\\\', '\\').replace('\\', '/'))
+
+        # 경로 비교 시 Windows 경로 구분자 문제 방지 및 f-string 구문 오류 수정
+        # f-string 내에서 백슬래시 관련 오류를 피하기 위해 replace 호출 결과를 변수에 저장 후 사용
+        formatted_expected_body_path = expected_body_path_str.replace('\\', '/')
+        formatted_expected_zip_path = expected_zip_path_str.replace('\\', '/')
+        # outputs 문자열 자체도 Windows 경로 구분자를 포함할 수 있으므로 동일하게 처리
+        formatted_outputs = outputs.replace('\\', '/')
+
+        self.assertIn(f"body_path={formatted_expected_body_path}", formatted_outputs)
+        self.assertIn(f"zip_path={formatted_expected_zip_path}", formatted_outputs)
 
 
     def test_empty_assets_directory(self):
@@ -126,8 +133,14 @@ class TestGenerateReleaseInfo(unittest.TestCase):
         outputs = self._read_github_output()
         expected_body_path_str = str(Path(body_path).resolve())
         expected_zip_path_str = str(Path(zip_path).resolve())
-        self.assertIn(f"body_path={expected_body_path_str.replace('\\', '/')}", outputs.replace('\\\\', '\\').replace('\\', '/'))
-        self.assertIn(f"zip_path={expected_zip_path_str.replace('\\', '/')}", outputs.replace('\\\\', '\\').replace('\\', '/'))
+
+        # 경로 비교 시 Windows 경로 구분자 문제 방지 및 f-string 구문 오류 수정
+        formatted_expected_body_path = expected_body_path_str.replace('\\', '/')
+        formatted_expected_zip_path = expected_zip_path_str.replace('\\', '/')
+        formatted_outputs = outputs.replace('\\', '/')
+
+        self.assertIn(f"body_path={formatted_expected_body_path}", formatted_outputs)
+        self.assertIn(f"zip_path={formatted_expected_zip_path}", formatted_outputs)
 
 
     def test_missing_assets_directory(self):
@@ -156,8 +169,14 @@ class TestGenerateReleaseInfo(unittest.TestCase):
         outputs = self._read_github_output()
         expected_body_path_str = str(Path(body_path).resolve())
         expected_zip_path_str = str(Path(zip_path).resolve())
-        self.assertIn(f"body_path={expected_body_path_str.replace('\\', '/')}", outputs.replace('\\\\', '\\').replace('\\', '/'))
-        self.assertIn(f"zip_path={expected_zip_path_str.replace('\\', '/')}", outputs.replace('\\\\', '\\').replace('\\', '/'))
+
+        # 경로 비교 시 Windows 경로 구분자 문제 방지 및 f-string 구문 오류 수정
+        formatted_expected_body_path = expected_body_path_str.replace('\\', '/')
+        formatted_expected_zip_path = expected_zip_path_str.replace('\\', '/')
+        formatted_outputs = outputs.replace('\\', '/')
+
+        self.assertIn(f"body_path={formatted_expected_body_path}", formatted_outputs)
+        self.assertIn(f"zip_path={formatted_expected_zip_path}", formatted_outputs)
 
 
     def test_no_github_output_env(self):
