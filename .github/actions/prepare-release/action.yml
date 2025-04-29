@@ -50,29 +50,33 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
-    # 2. 모든 빌드 아티팩트 다운로드
-    # 기본적으로 워크플로우 레벨에서 업로드된 모든 아티팩트를 다운로드함
-    - name: Download all build artifacts
+    # 2. 단일 빌드 아티팩트 다운로드
+    # 'all-binaries' 아티팩트만 다운로드하도록 name을 지정합니다.
+    - name: Download all build artifact
       uses: actions/download-artifact@v4
       with:
-        path: ${{ inputs.artifact-download-path }} # 지정된 경로에 하위 디렉토리로 다운로드됨
+        name: all-binaries # 다운로드할 아티팩트 이름 지정
+        # 지정된 경로에 다운로드됨
+        path: ${{ inputs.artifact-download-path }}
 
     # 3. 릴리스 에셋 준비 (Python 스크립트 실행)
     # 스크립트 경로는 이 action.yml 파일 위치 기준이 아닌, 워크플로우 실행 컨텍스트 기준임.
     # 따라서 스크립트가 저장소 루트의 .github/scripts/ 에 있다고 가정.
-    # 이 스텝은 수정된 prepare_release_assets.py를 사용합니다.
+    # prepare_release_assets.py 스크립트가 다운로드된 아티팩트의 새로운 구조를 처리하도록 수정 필요
     - name: Prepare Release Assets
       id: prepare_assets
       shell: bash # bash/sh 사용 명시
       # 워크플로우 루트의 gradle.properties 참조 가정
       run: |
+        # 다운로드된 아티팩트 경로는 artifact-download-path/all-binaries/ 형태가 될 수 있습니다.
+        # prepare_release_assets.py 스크립트가 이 구조를 처리하도록 수정해야 합니다.
+        # 현재는 다운로드 경로 자체를 input-dir로 전달합니다.
         python ./.github/scripts/prepare_release_assets.py \
           --input-dir "${{ inputs.artifact-download-path }}" \
           --output-dir "${{ inputs.prepared-assets-path }}" \
           --prop-file gradle.properties
 
     # 4. 릴리스 정보 생성 (본문, Zip) (Python 스크립트 실행)
-    # 이 스텝은 수정된 generate_release_info.py를 사용하며, prepare_assets의 출력(prepared-assets-path)을 입력으로 받습니다.
     - name: Generate Release Info (Body and Zip)
       id: generate_info
       shell: bash
@@ -89,5 +93,4 @@ runs:
         python ./.github/scripts/generate_release_info.py \
           --version "$VERSION_NUM" \
           --assets-dir "${{ inputs.prepared-assets-path }}" \
-          --output-body-file "${{ inputs.output-body-file }}" \
           --output-zip-file "$output_zip_file"
