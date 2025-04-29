@@ -58,17 +58,17 @@ def get_gradle_property(prop_file_path, key):
 
     try:
         with open(prop_file_path, 'r', encoding='utf-8') as f:
-           for line in f:
-               line = line.strip()
-               if not line or line.startswith('#') or line.startswith('!'):
-                   continue
-               # 공백을 허용하며 '=' 기준으로 분리
-               parts = line.split('=', 1)
-               if len(parts) == 2:
-                   k, v = parts[0].strip(), parts[1].strip()
-                   if k == key:
-                       print(f"::info::Found '{key}' in {prop_file_path}: {v}")
-                       return v
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith('#') or line.startswith('!'):
+                    continue
+                # 공백을 허용하며 '=' 기준으로 분리
+                parts = line.split('=', 1)
+                if len(parts) == 2:
+                    k, v = parts[0].strip(), parts[1].strip()
+                    if k == key:
+                        print(f"::info::Found '{key}' in {prop_file_path}: {v}")
+                        return v
     except Exception as e:
         print(f"::error::Error reading {prop_file_path}: {e}")
         return None
@@ -135,17 +135,23 @@ def prepare_assets(input_dir_str, output_dir_str, prop_file_str):
 
             platform_target_name = None
             try:
-                # input_dir 기준 상대 경로에서 'library/build/bin/' 부분을 찾습니다.
+                # input_dir 기준 상대 경로를 얻습니다.
                 relative_parts = binary_file_path.relative_to(input_dir).parts
+
+                # 'library/build/bin' 경로가 시작되는 인덱스를 찾고, 그 다음 부분을 플랫폼 타겟으로 사용합니다.
+                # Mock 경로 예: ('non-apple-binaries', 'library', 'build', 'bin', 'linuxX64', 'releaseShared', 'my-library.so')
+                # 'bin'의 인덱스는 3이고, 플랫폼 타겟은 인덱스 4에 있습니다.
                 try:
-                    # 'library/build/bin' 경로가 시작되는 인덱스를 찾습니다.
                     bin_path_index = relative_parts.index("bin")
-                    # 'bin' 다음 부분이 플랫폼 타겟 이름이라고 가정합니다.
-                    # 예: relative_parts = ('non-apple-binaries', 'library', 'build', 'bin', 'linuxX64', 'releaseShared', 'my-library.so')
-                    # bin_path_index = 3
-                    # 플랫폼 타겟은 인덱스 4에 위치합니다.
-                    platform_target_name = relative_parts[bin_path_index + 1]
-                    print(f"::info::Extracted platform target '{platform_target_name}' from path parts.")
+                    # 'bin' 다음 부분이 있고, 'releaseShared' 이전 부분이라고 가정
+                    if bin_path_index + 1 < len(relative_parts):
+                        potential_target = relative_parts[bin_path_index + 1]
+                        # 추출된 타겟이 유효한 플랫폼 타겟 목록에 있는지 확인
+                        if potential_target in required_platforms or potential_target in platform_name_map:
+                            platform_target_name = potential_target
+                            print(f"::info::Extracted platform target '{platform_target_name}' from path parts.")
+                        else:
+                            print(f"::warning::Extracted potential target '{potential_target}' is not a known platform target.")
 
                 except ValueError:
                     # 경로에 'library/build/bin'이 없는 경우 (다른 구조의 아티팩트일 수 있음)
@@ -160,8 +166,8 @@ def prepare_assets(input_dir_str, output_dir_str, prop_file_str):
 
 
             except Exception as e:
-                 print(f"::error::Error processing path {binary_file_path.relative_to(input_dir)}: {e}. Skipping.")
-                 continue # 경로 처리 오류 시 건너뛰기
+                print(f"::error::Error processing path {binary_file_path.relative_to(input_dir)}: {e}. Skipping.")
+                continue # 경로 처리 오류 시 건너뛰기
 
 
             # 예시 3: 플랫폼 타겟 이름을 추출할 수 없는 경우 (오류 또는 경고)
@@ -174,10 +180,10 @@ def prepare_assets(input_dir_str, output_dir_str, prop_file_str):
             # platform_target_name이 None이 아닌 경우에만 추가
             if platform_target_name:
                 if platform_target_name in required_platforms or platform_target_name in platform_name_map: # required_platforms 또는 매핑에 있는 타겟만 유효하다고 간주
-                     found_platforms.add(platform_target_name)
+                    found_platforms.add(platform_target_name)
                 else:
-                     print(f"::warning::Found binary for unknown platform target '{platform_target_name}'. Skipping.")
-                     continue # 알 수 없는 타겟은 건너뛰기
+                    # 이 경우는 위에서 이미 경고 출력 후 continue 처리됨.
+                    pass
             else:
                 # platform_target_name이 None인 경우는 위에서 이미 continue 처리됨.
                 pass
@@ -201,7 +207,8 @@ def prepare_assets(input_dir_str, output_dir_str, prop_file_str):
                 copied_files_count += 1 # 성공적으로 복사된 파일만 카운트
             except Exception as e:
                 print(f"::error::Error copying file {binary_file_path} to {dest_file_path}: {e}")
-                continue # 복사 실패 시 해당 파일 건너뛰기
+                # 복사 실패 시 해당 파일 건너뛰기
+                continue
 
 
     # 5. 모든 필수 플랫폼의 바이너리가 준비되었는지 확인 (모듈 레벨 변수 사용)
@@ -217,13 +224,13 @@ def prepare_assets(input_dir_str, output_dir_str, prop_file_str):
         print("::error::No binary files were successfully copied, but required platforms were specified.")
         return False
     elif copied_files_count == 0 and not required_platforms:
-         # 필수 플랫폼은 지정되지 않았고 복사된 파일도 없다면 성공으로 간주 가능
-         print("::info::No binary files were successfully copied, and no required platforms were specified.")
-         pass # 성공으로 간주
+        # 필수 플랫폼은 지정되지 않았고 복사된 파일도 없다면 성공으로 간주 가능
+        print("::info::No binary files were successfully copied, and no required platforms were specified.")
+        pass # 성공으로 간주
     elif copied_files_count > 0 and not required_platforms:
-         # 필수 플랫폼은 지정되지 않았지만 일부 파일이 복사되었다면 성공
-         print(f"::info::{copied_files_count} binary files were successfully copied.")
-         pass # 성공으로 간주
+        # 필수 플랫폼은 지정되지 않았지만 일부 파일이 복사되었다면 성공
+        print(f"::info::{copied_files_count} binary files were successfully copied.")
+        pass # 성공으로 간주
 
 
     print("::info::Finished preparing release assets. All required platforms found." if required_platforms else "::info::Finished preparing release assets. No required platforms specified.")
