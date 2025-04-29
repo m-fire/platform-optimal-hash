@@ -1,10 +1,10 @@
 # .github/scripts/prepare_release_assets.py
+import argparse
 import os
+import re  # 정규식 사용을 위해 re 모듈 임포트
 import shutil
 import sys
 from pathlib import Path
-import argparse
-import re # 정규식 사용을 위해 re 모듈 임포트
 
 # 필수적으로 포함되어야 할 플랫폼 타겟 목록 정의 (모듈 레벨)
 # TODO: 프로젝트에서 릴리즈 시 필수로 포함해야 하는 모든 플랫폼 타겟을 이 목록에 명시하세요.
@@ -113,102 +113,105 @@ def prepare_assets(input_dir_str, output_dir_str, prop_file_str):
 
     print(f"::info::Searching for binaries in '{input_dir}'")
 
-    # === 파일 탐색 로직 ===
-    # input_dir 하위 전체에서 binary_filename_base를 포함하는 파일을 찾습니다.
-    search_pattern = f"**/{binary_filename_base}.*"
+    # 예상되는 아티팩트 이름 목록 (download-artifact가 생성하는 하위 디렉토리 이름)
+    artifact_names = ["non-apple-binaries", "apple-binaries"]
 
-    # TODO: 이 탐색 패턴이 실제 빌드된 모든 바이너리 파일을 포함하는지 확인하세요.
-    # 예: 파일 이름에 -debug, -release 등의 접미사가 붙는 경우 패턴 수정 필요.
-    # 예: my-library-linuxX64-release.so -> search_pattern = f"**/{binary_filename_base}-*.so"
+    for artifact_name in artifact_names:
+        artifact_root_dir = input_dir / artifact_name
+        if not artifact_root_dir.is_dir():
+            print(f"::warning::Artifact directory not found: {artifact_root_dir}. Skipping.")
+            continue
 
-    for binary_file_path in input_dir.glob(search_pattern):
-        if binary_file_path.is_file():
-            print(f"::info::Found potential binary file: {binary_file_path}")
+        print(f"::info::Searching for binaries within artifact directory '{artifact_root_dir}'")
 
-            # === 플랫폼 타겟 이름 추출 로직 수정 ===
-            # 파일 경로에서 'library/build/bin/' 다음 부분을 플랫폼 타겟으로 간주합니다.
-            # 이 로직은 test_prepare_release_assets.py에서 Mock 경로를 생성하는 방식에 맞춰져 있습니다.
-            # TODO: 실제 GitHub Actions 환경에서 다운로드된 아티팩트의 내부 구조를 확인하고,
-            # 그 구조에 맞게 플랫폼 타겟 이름을 추출하는 로직을 정확히 구현해야 합니다.
-            # 예: downloaded-artifacts/non-apple-binaries/linuxX64/optimal_hash.so -> linuxX64
-            # 예: downloaded-artifacts/non-apple-binaries/library/build/bin/linuxX64/releaseShared/optimal_hash.so -> linuxX64 (현재 Mock 구조)
+        # === 파일 탐색 로직 ===
+        # artifact_root_dir 하위 전체에서 binary_filename_base를 포함하는 파일을 찾습니다.
+        search_pattern = f"**/{binary_filename_base}.*"
 
-            platform_target_name = None
-            try:
-                # input_dir 기준 상대 경로를 얻습니다.
-                relative_parts = binary_file_path.relative_to(input_dir).parts
+        # TODO: 이 탐색 패턴이 실제 빌드된 모든 바이너리 파일을 포함하는지 확인하세요.
+        # 예: 파일 이름에 -debug, -release 등의 접미사가 붙는 경우 패턴 수정 필요.
+        # 예: my-library-linuxX64-release.so -> search_pattern = f"**/{binary_filename_base}-*.so"
 
-                # 'library/build/bin' 경로가 시작되는 인덱스를 찾고, 그 다음 부분을 플랫폼 타겟으로 사용합니다.
-                # Mock 경로 예: ('non-apple-binaries', 'library', 'build', 'bin', 'linuxX64', 'releaseShared', 'my-library.so')
-                # 'bin'의 인덱스는 3이고, 플랫폼 타겟은 인덱스 4에 있습니다.
+        for binary_file_path in artifact_root_dir.glob(search_pattern):
+            if binary_file_path.is_file():
+                print(f"::info::Found potential binary file: {binary_file_path}")
+                # 로깅 추가: 찾은 파일의 input_dir 기준 상대 경로 및 파트 출력
+                relative_to_input = binary_file_path.relative_to(input_dir)
+                print(f"::debug::Relative path to input_dir: {relative_to_input}")
+                print(f"::debug::Relative path parts: {relative_to_input.parts}")
+
+
+                # === 플랫폼 타겟 이름 추출 로직 개선 ===
+                # 파일 경로의 각 부분을 순회하며 known 플랫폼 타겟 이름이 있는지 확인합니다.
+                platform_target_name = None
                 try:
-                    bin_path_index = relative_parts.index("bin")
-                    # 'bin' 다음 부분이 있고, 'releaseShared' 이전 부분이라고 가정
-                    if bin_path_index + 1 < len(relative_parts):
-                        potential_target = relative_parts[bin_path_index + 1]
-                        # 추출된 타겟이 유효한 플랫폼 타겟 목록에 있는지 확인
-                        if potential_target in required_platforms or potential_target in platform_name_map:
-                            platform_target_name = potential_target
-                            print(f"::info::Extracted platform target '{platform_target_name}' from path parts.")
-                        else:
-                            print(f"::warning::Extracted potential target '{potential_target}' is not a known platform target.")
-
-                except ValueError:
-                    # 경로에 'library/build/bin'이 없는 경우 (다른 구조의 아티팩트일 수 있음)
-                    print(f"::warning::'library/build/bin' not found in path parts: {relative_parts}. Trying filename pattern.")
-                    # 파일 이름에서 패턴 매칭 시도 (이전 로직 유지)
-                    match = re.search(rf'{re.escape(binary_filename_base)}_([a-zA-Z0-9]+)\..*', binary_file_path.name)
-                    if match:
-                        potential_target = match.group(1)
-                        if potential_target in required_platforms or potential_target in platform_name_map:
-                            platform_target_name = potential_target
-                            print(f"::info::Extracted platform target '{platform_target_name}' from filename pattern.")
+                    # artifact_root_dir 기준 상대 경로를 얻습니다.
+                    relative_to_artifact_root = binary_file_path.relative_to(artifact_root_dir)
+                    print(f"::debug::Relative path to artifact_root_dir: {relative_to_artifact_root}")
+                    print(f"::debug::Relative path parts (artifact_root): {relative_to_artifact_root.parts}")
 
 
-            except Exception as e:
-                print(f"::error::Error processing path {binary_file_path.relative_to(input_dir)}: {e}. Skipping.")
-                continue # 경로 처리 오류 시 건너뛰기
+                    # 상대 경로의 각 부분을 순회하며 known 플랫폼 타겟 이름과 일치하는지 확인
+                    for part in relative_to_artifact_root.parts:
+                        if part in required_platforms or part in platform_name_map:
+                            platform_target_name = part
+                            print(f"::info::Extracted platform target '{platform_target_name}' from path part '{part}'.")
+                            break # 첫 번째로 찾은 유효한 타겟을 사용
+
+                    # 파일 이름 자체에서 패턴 매칭 시도 (경로에 타겟 이름이 없는 경우 대비)
+                    if platform_target_name is None:
+                        match = re.search(rf'{re.escape(binary_filename_base)}_([a-zA-Z0-9]+)\..*', binary_file_path.name)
+                        if match:
+                            potential_target = match.group(1)
+                            if potential_target in required_platforms or potential_target in platform_name_map:
+                                platform_target_name = potential_target
+                                print(f"::info::Extracted platform target '{platform_target_name}' from filename pattern.")
 
 
-            # 예시 3: 플랫폼 타겟 이름을 추출할 수 없는 경우 (오류 또는 경고)
-            if platform_target_name is None:
-                print(f"::warning::Could not extract platform target name from file path or name: {binary_file_path}. Skipping.")
-                continue # 플랫폼 타겟을 알 수 없으면 해당 파일 건너뛰기
+                except Exception as e:
+                    print(f"::error::Error processing path {binary_file_path}: {e}. Skipping.")
+                    continue # 경로 처리 오류 시 건너뛰기
 
 
-            # 찾은 플랫폼 타겟을 found_platforms 집합에 추가 (유효한 타겟만)
-            # platform_target_name이 None이 아닌 경우에만 추가
-            if platform_target_name:
-                if platform_target_name in required_platforms or platform_target_name in platform_name_map: # required_platforms 또는 매핑에 있는 타겟만 유효하다고 간주
-                    found_platforms.add(platform_target_name)
+                # 예시 3: 플랫폼 타겟 이름을 추출할 수 없는 경우 (오류 또는 경고)
+                if platform_target_name is None:
+                    print(f"::warning::Could not extract platform target name from file path or name: {binary_file_path}. Skipping.")
+                    continue # 플랫폼 타겟을 알 수 없으면 해당 파일 건너뛰기
+
+
+                # 찾은 플랫폼 타겟을 found_platforms 집합에 추가 (유효한 타겟만)
+                # platform_target_name이 None이 아닌 경우에만 추가
+                if platform_target_name:
+                    if platform_target_name in required_platforms or platform_target_name in platform_name_map: # required_platforms 또는 매핑에 있는 타겟만 유효하다고 간주
+                        found_platforms.add(platform_target_name)
+                    else:
+                        # 이 경우는 위에서 이미 경고 출력 후 continue 처리됨.
+                        pass
                 else:
-                    # 이 경우는 위에서 이미 경고 출력 후 continue 처리됨.
+                    # platform_target_name이 None인 경우는 위에서 이미 continue 처리됨.
                     pass
-            else:
-                # platform_target_name이 None인 경우는 위에서 이미 continue 처리됨.
-                pass
 
 
-            # 플랫폼명 매핑 (모듈 레벨 변수 사용)
-            # platform_target_name이 유효한 값이라고 가정
-            friendly_platform_name = platform_name_map.get(platform_target_name, platform_target_name)
-            if platform_target_name not in platform_name_map:
-                print(f"::warning::No specific mapping found for platform target '{platform_target_name}'. Using original name.")
+                # 플랫폼명 매핑 (모듈 레벨 변수 사용)
+                # platform_target_name이 유효한 값이라고 가정
+                friendly_platform_name = platform_name_map.get(platform_target_name, platform_target_name)
+                if platform_target_name not in platform_name_map:
+                    print(f"::warning::No specific mapping found for platform target '{platform_target_name}'. Using original name.")
 
 
-            # 출력 경로 생성 및 파일 복사
-            dest_dir = output_dir / friendly_platform_name
-            dest_dir.mkdir(parents=True, exist_ok=True)
-            dest_file_path = dest_dir / binary_file_path.name # 원본 파일 이름 사용
+                # 출력 경로 생성 및 파일 복사
+                dest_dir = output_dir / friendly_platform_name
+                dest_dir.mkdir(parents=True, exist_ok=True)
+                dest_file_path = dest_dir / binary_file_path.name # 원본 파일 이름 사용
 
-            print(f"::info::Copying '{binary_file_path}' to '{dest_file_path}' for platform '{friendly_platform_name}'")
-            try:
-                shutil.copy2(binary_file_path, dest_file_path)
-                copied_files_count += 1 # 성공적으로 복사된 파일만 카운트
-            except Exception as e:
-                print(f"::error::Error copying file {binary_file_path} to {dest_file_path}: {e}")
-                # 복사 실패 시 해당 파일 건너뛰기
-                continue
+                print(f"::info::Copying '{binary_file_path}' to '{dest_file_path}' for platform '{friendly_platform_name}'")
+                try:
+                    shutil.copy2(binary_file_path, dest_file_path)
+                    copied_files_count += 1 # 성공적으로 복사된 파일만 카운트
+                except Exception as e:
+                    print(f"::error::Error copying file {binary_file_path} to {dest_file_path}: {e}")
+                    # 복사 실패 시 해당 파일 건너뛰기
+                    continue
 
 
     # 5. 모든 필수 플랫폼의 바이너리가 준비되었는지 확인 (모듈 레벨 변수 사용)
