@@ -108,8 +108,8 @@ jobs:
           # output-body-file: 'release-body.md' # 기본값 사용 시 생략 가능
           # output-zip-file-pattern: 'platform-binaries-{version}.zip' # 기본값 사용 시 생략 가능
 
-      # 3.3. GitHub 릴리즈 생성 및 모든 에셋 업로드 (softprops/action-gh-release 사용)
-      - name: Create GitHub Release and Upload Assets
+      # 3.3. GitHub 릴리즈 생성 및 **단일 압축 파일** 업로드
+      - name: Create GitHub Release and Upload Zip Asset
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }} # 트리거된 태그 사용
@@ -117,12 +117,9 @@ jobs:
           body_path: ${{ steps.prepare.outputs.body_path }} # 복합 액션의 출력 사용
           draft: false # 정식 릴리즈로 생성 (필요 시 true)
           prerelease: false # 프리릴리즈 아님 (필요 시 true)
-          # 복합 액션의 출력 사용 (Zip 아카이브) 및 복합 액션이 준비한 개별 플랫폼 에셋 경로(기본값 가정)
-          files: |
-            ${{ steps.prepare.outputs.zip_path }}
-            release-assets/**/*
-          # 파일 경로 못 찾으면 실패 처리
-          fail_on_unmatched_files: true
+          # files 입력에 압축 파일 경로 지정
+          files: ${{ steps.prepare.outputs.zip_path }}
+          fail_on_unmatched_files: true # 파일 경로 못 찾으면 실패 처리
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
