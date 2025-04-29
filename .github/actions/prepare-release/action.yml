@@ -60,6 +60,7 @@ runs:
     # 3. 릴리스 에셋 준비 (Python 스크립트 실행)
     # 스크립트 경로는 이 action.yml 파일 위치 기준이 아닌, 워크플로우 실행 컨텍스트 기준임.
     # 따라서 스크립트가 저장소 루트의 .github/scripts/ 에 있다고 가정.
+    # 이 스텝은 수정된 prepare_release_assets.py를 사용합니다.
     - name: Prepare Release Assets
       id: prepare_assets
       shell: bash # bash/sh 사용 명시
@@ -71,6 +72,7 @@ runs:
           --prop-file gradle.properties
 
     # 4. 릴리스 정보 생성 (본문, Zip) (Python 스크립트 실행)
+    # 이 스텝은 수정된 generate_release_info.py를 사용하며, prepare_assets의 출력(prepared-assets-path)을 입력으로 받습니다.
     - name: Generate Release Info (Body and Zip)
       id: generate_info
       shell: bash

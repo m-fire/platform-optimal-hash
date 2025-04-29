@@ -7,7 +7,7 @@ from tempfile import TemporaryDirectory, NamedTemporaryFile
 from unittest.mock import patch, MagicMock
 
 # 테스트 대상 스크립트 경로 추가
-script_dir = Path(__file__).parent.parent / '.github' / 'scripts'
+script_dir = Path(__file__).parent
 sys.path.append(str(script_dir))
 
 # 테스트 대상 스크립트 임포트

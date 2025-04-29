@@ -34,7 +34,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: non-apple-binaries
-          # 실제 프로젝트 경로에 맞게 수정 필요
+          ## KMP 프로젝트의 서브모듈 `library` 빌드경로: {project-root}/library/build/
           path: |
             library/build/bin/linuxX64/releaseShared/
             library/build/bin/windowsX64/releaseShared/
@@ -69,7 +69,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apple-binaries
-          # 실제 프로젝트 경로에 맞게 수정 필요
+          # KMP 프로젝트의 서브모듈 `library` 빌드경로: {project-root}/library/build/
           path: |
             library/build/bin/macosArm64/releaseShared/
             library/build/bin/macosX64/releaseShared/
@@ -94,6 +94,7 @@ jobs:
 
       # 3.2. 릴리즈 준비 (Composite Action 사용)
       # 이 액션은 내부적으로 아티팩트 다운로드, 에셋 준비, 정보 생성을 수행함.
+      # prepare-release 액션은 수정된 prepare_release_assets.py와 generate_release_info.py를 사용하게 됩니다.
       - name: Prepare Release Assets and Info
         id: prepare # 출력 참조를 위한 ID
         uses: ./.github/actions/prepare-release
@@ -102,7 +103,6 @@ jobs:
           # 태그 이름 자체를 전달하거나, 스크립트처럼 'v' 제거 로직 추가 가능
           version: ${{ github.ref_name }}
           # 필요 시 다른 input 전달 (python-version 등)
-          # python-version: '3.10'
           # artifact-download-path: 'downloaded-artifacts' # 기본값 사용 시 생략 가능
           # prepared-assets-path: 'release-assets' # 기본값 사용 시 생략 가능
           # output-body-file: 'release-body.md' # 기본값 사용 시 생략 가능
@@ -117,7 +117,7 @@ jobs:
           body_path: ${{ steps.prepare.outputs.body_path }} # 복합 액션의 출력 사용
           draft: false # 정식 릴리즈로 생성 (필요 시 true)
           prerelease: false # 프리릴리즈 아님 (필요 시 true)
-          # files 입력에 압축 파일 경로 지정
+          # files 입력에 압축 파일 경로 지정 (prepare 스텝에서 생성된 Zip 파일 경로 사용)
           files: ${{ steps.prepare.outputs.zip_path }}
           fail_on_unmatched_files: true # 파일 경로 못 찾으면 실패 처리
         env:
