@@ -11,6 +11,7 @@ on:
       - 'gradle/**'
       - 'gradle.properties'
       - '*.gradle.kts'
+      - '*.md'
   workflow_dispatch:
 
 jobs:
