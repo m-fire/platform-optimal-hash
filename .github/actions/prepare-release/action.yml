@@ -6,7 +6,6 @@ inputs:
   version:
     description: '릴리스 버전 번호(ex: 1.0.0) 입력주의: 'v'접두사 제외입력'
     required: true
-    type: string
   python-version:
     description: '사용할 Python 버전'
     required: false
