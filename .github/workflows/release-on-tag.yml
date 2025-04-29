@@ -1,6 +1,5 @@
 # .github/workflows/release-on-tag.yml
 # 'v*' 태그 푸시 시 트리거되어 KMP 라이브러리를 빌드하고 GitHub 릴리즈를 생성함.
-# create_release Job에서 Composite Action을 활용하도록 개선됨.
 name: Release KMP Native Libraries on Tag Push
 
 on:
@@ -100,7 +99,8 @@ jobs:
         uses: ./.github/actions/prepare-release
         with:
           # 태그 이름에서 'v' 제거하여 버전 번호 전달
-          version: ${{ github.ref_name }} # 태그 이름 자체를 전달하거나, 스크립트처럼 'v' 제거 로직 추가 가능
+          # 태그 이름 자체를 전달하거나, 스크립트처럼 'v' 제거 로직 추가 가능
+          version: ${{ github.ref_name }}
           # 필요 시 다른 input 전달 (python-version 등)
           # python-version: '3.10'
           # artifact-download-path: 'downloaded-artifacts' # 기본값 사용 시 생략 가능
@@ -117,12 +117,14 @@ jobs:
           body_path: ${{ steps.prepare.outputs.body_path }} # 복합 액션의 출력 사용
           draft: false # 정식 릴리즈로 생성 (필요 시 true)
           prerelease: false # 프리릴리즈 아님 (필요 시 true)
+          # 복합 액션의 출력 사용 (Zip 아카이브) 및 복합 액션이 준비한 개별 플랫폼 에셋 경로(기본값 가정)
           files: |
-            ${{ steps.prepare.outputs.zip_path }} # 복합 액션의 출력 사용 (Zip 아카이브)
-            release-assets/**/* # 복합 액션이 준비한 개별 플랫폼 에셋 경로 (기본값 가정)
-          fail_on_unmatched_files: true # 파일 경로 못 찾으면 실패 처리
+            ${{ steps.prepare.outputs.zip_path }}
+            release-assets/**/*
+          # 파일 경로 못 찾으면 실패 처리
+          fail_on_unmatched_files: true
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 액션 내에서 사용할 토큰
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # =============================================================================
   # Job 5: Maven Central 배포 (선택 사항)
