@@ -1,10 +1,10 @@
 # .github/scripts/prepare_release_assets.py
-import argparse
 import os
-import re  # 정규식 사용을 위해 re 모듈 임포트
 import shutil
 import sys
 from pathlib import Path
+import argparse
+import re # 정규식 사용을 위해 re 모듈 임포트
 
 # 필수적으로 포함되어야 할 플랫폼 타겟 목록 정의 (모듈 레벨)
 # TODO: 프로젝트에서 릴리즈 시 필수로 포함해야 하는 모든 플랫폼 타겟을 이 목록에 명시하세요.
@@ -23,8 +23,9 @@ required_platforms = {
 # 예: linuxX64 -> linux, macosX64 -> macos-x64
 # TODO: 프로젝트에서 빌드하는 모든 플랫폼 타겟이 이 맵에 포함되어 있고,
 # 원하는 출력 디렉토리 이름으로 매핑되어 있는지 확인하세요.
+# Note: 이제 출력 디렉토리 이름으로 이 맵의 '값' 대신 추출된 플랫폼 타겟 이름(맵의 '키')을 직접 사용합니다.
 platform_name_map = {
-    "linuxX64": "linux",
+    "linuxX64": "linux", # 이 매핑은 로그 출력 등에서만 사용될 수 있습니다.
     "windowsX64": "windows",
     "androidNativeArm64": "android-arm64",
     "androidNativeX64": "android-x64",
@@ -141,8 +142,8 @@ def prepare_assets(input_dir_str, output_dir_str, prop_file_str):
                 print(f"::debug::Relative path parts: {relative_to_input.parts}")
 
 
-                # === 플랫폼 타겟 이름 추출 로직 개선 ===
-                # 파일 경로의 각 부분을 순회하며 known 플랫폼 타겟 이름이 있는지 확인합니다.
+                # === 플랫폼 타겟 이름 추출 로직 (개선) ===
+                # 파일 경로의 각 부분을 순회하며 known 플랫폼 타겟 이름과 일치하는지 확인합니다.
                 platform_target_name = None
                 try:
                     # artifact_root_dir 기준 상대 경로를 얻습니다.
@@ -150,10 +151,11 @@ def prepare_assets(input_dir_str, output_dir_str, prop_file_str):
                     print(f"::debug::Relative path to artifact_root_dir: {relative_to_artifact_root}")
                     print(f"::debug::Relative path parts (artifact_root): {relative_to_artifact_root.parts}")
 
-
                     # 상대 경로의 각 부분을 순회하며 known 플랫폼 타겟 이름과 일치하는지 확인
+                    # 예: relative_to_artifact_root.parts = ('windowsX64', 'releaseShared', 'optimal_hash.dll')
+                    # 또는 ('library', 'build', 'bin', 'windowsX64', 'releaseShared', 'optimal_hash.dll')
                     for part in relative_to_artifact_root.parts:
-                        if part in required_platforms or part in platform_name_map:
+                        if part in required_platforms or part in platform_name_map: # required_platforms 또는 매핑 키에 포함된 이름 찾기
                             platform_target_name = part
                             print(f"::info::Extracted platform target '{platform_target_name}' from path part '{part}'.")
                             break # 첫 번째로 찾은 유효한 타겟을 사용
@@ -163,7 +165,7 @@ def prepare_assets(input_dir_str, output_dir_str, prop_file_str):
                         match = re.search(rf'{re.escape(binary_filename_base)}_([a-zA-Z0-9]+)\..*', binary_file_path.name)
                         if match:
                             potential_target = match.group(1)
-                            if potential_target in required_platforms or potential_target in platform_name_map:
+                            if potential_target in required_platforms or potential_target in platform_name_map: # required_platforms 또는 매핑 키에 포함된 이름 찾기
                                 platform_target_name = potential_target
                                 print(f"::info::Extracted platform target '{platform_target_name}' from filename pattern.")
 
@@ -182,29 +184,28 @@ def prepare_assets(input_dir_str, output_dir_str, prop_file_str):
                 # 찾은 플랫폼 타겟을 found_platforms 집합에 추가 (유효한 타겟만)
                 # platform_target_name이 None이 아닌 경우에만 추가
                 if platform_target_name:
-                    if platform_target_name in required_platforms or platform_target_name in platform_name_map: # required_platforms 또는 매핑에 있는 타겟만 유효하다고 간주
-                        found_platforms.add(platform_target_name)
-                    else:
-                        # 이 경우는 위에서 이미 경고 출력 후 continue 처리됨.
-                        pass
+                    # 이미 위 추출 로직에서 required_platforms 또는 platform_name_map 키에 있는지 확인했으므로
+                    # 여기서는 바로 found_platforms에 추가합니다.
+                    found_platforms.add(platform_target_name)
                 else:
                     # platform_target_name이 None인 경우는 위에서 이미 continue 처리됨.
                     pass
 
 
-                # 플랫폼명 매핑 (모듈 레벨 변수 사용)
-                # platform_target_name이 유효한 값이라고 가정
-                friendly_platform_name = platform_name_map.get(platform_target_name, platform_target_name)
-                if platform_target_name not in platform_name_map:
-                    print(f"::warning::No specific mapping found for platform target '{platform_target_name}'. Using original name.")
-
-
-                # 출력 경로 생성 및 파일 복사
-                dest_dir = output_dir / friendly_platform_name
+                # === 출력 경로 생성 수정 ===
+                # 요청에 따라 추출된 플랫폼 타겟 이름 자체를 출력 디렉토리 이름으로 사용합니다.
+                # platform_name_map은 더 이상 출력 디렉토리 이름 매핑에 사용되지 않습니다.
+                dest_dir = output_dir / platform_target_name # 추출된 platform_target_name 사용
                 dest_dir.mkdir(parents=True, exist_ok=True)
                 dest_file_path = dest_dir / binary_file_path.name # 원본 파일 이름 사용
 
-                print(f"::info::Copying '{binary_file_path}' to '{dest_file_path}' for platform '{friendly_platform_name}'")
+                # 로그 출력 시에는 friendly_platform_name 사용 (선택 사항)
+                friendly_platform_name_for_log = platform_name_map.get(platform_target_name, platform_target_name)
+                if platform_target_name not in platform_name_map:
+                    print(f"::warning::No specific mapping found for platform target '{platform_target_name}'. Using original name for logging.")
+
+
+                print(f"::info::Copying '{binary_file_path}' to '{dest_file_path}' for platform '{friendly_platform_name_for_log}'")
                 try:
                     shutil.copy2(binary_file_path, dest_file_path)
                     copied_files_count += 1 # 성공적으로 복사된 파일만 카운트
@@ -220,7 +221,7 @@ def prepare_assets(input_dir_str, output_dir_str, prop_file_str):
         print(f"::error::Missing required platform binaries for: {', '.join(missing_platforms)}")
         # TODO: 필수 바이너리가 누락된 경우, 이미 복사된 파일들을 그대로 둘지 아니면 출력 디렉토리를 비울지 결정해야 합니다.
         # 현재는 복사된 파일들을 그대로 둡니다.
-        return False # 필수 바이너리가 누락되었으므로 실패
+        return False # 필수 바이너리가 누락되었므로 실패
 
     if copied_files_count == 0 and required_platforms:
         # 필수 플랫폼은 지정되었는데 복사된 파일이 하나도 없다면 문제 상황
