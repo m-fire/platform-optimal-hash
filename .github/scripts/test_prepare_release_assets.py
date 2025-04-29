@@ -13,6 +13,8 @@ sys.path.append(str(script_dir))
 # 테스트 대상 모듈 임포트 시도
 try:
     import prepare_release_assets
+    # prepare_release_assets 스크립트에서 모듈 레벨로 이동한 변수들을 직접 임포트
+    from prepare_release_assets import required_platforms, platform_name_map, platform_extensions
 except ImportError as e:
     print(f"테스트 대상 모듈 임포트 실패: {e}")
     print(f"스크립트 경로 확인: {script_dir}")
@@ -40,25 +42,25 @@ class TestPrepareReleaseAssets(unittest.TestCase):
         # Mock 입력 디렉토리 생성
         self.mock_input_dir.mkdir(parents=True, exist_ok=True)
 
-        # prepare_release_assets 스크립트의 required_platforms 목록을 참조하여 테스트에 사용
-        # 이 목록은 스크립트의 실제 required_platforms와 일치해야 합니다.
-        self.all_required_platforms = prepare_release_assets.required_platforms
+        # prepare_release_assets 스크립트에서 임포트한 required_platforms 목록을 참조하여 테스트에 사용
+        self.all_required_platforms = required_platforms
+        self.platform_extensions = platform_extensions # 임포트한 확장자 맵 사용
 
 
     def tearDown(self):
         """각 테스트 후 임시 디렉토리 정리"""
         self.test_dir.cleanup()
 
-    def _create_mock_artifact_structure(self, artifact_name, platform_target, binary_name, extension):
+    def _create_mock_artifact_structure(self, platform_target, binary_name, extension):
         """
-        임시 입력 디렉토리 내에 특정 아티팩트 및 플랫폼 구조를 생성하고 더미 바이너리 파일을 만듭니다.
-        artifact_name: 아티팩트 이름 (예: non-apple-binaries, apple-binaries)
+        임시 입력 디렉토리 내에 단일 아티팩트 및 특정 플랫폼 구조를 생성하고 더미 바이너리 파일을 만듭니다.
+        Mock 아티팩트 구조: downloaded-artifacts/all-binaries/library/build/bin/platform_target/releaseShared/binary_name.extension
         platform_target: KMP 플랫폼 타겟 이름 (예: linuxX64, macosX64)
         binary_name: 바이너리 기본 이름 (gradle.properties의 binaryFilename과 일치)
         extension: 바이너리 파일 확장자 (예: so, dll, dylib)
         """
-        # 예상되는 빌드 경로: input_dir / artifact_name / library/build/bin / platform_target / releaseShared / binary_name.extension
-        binary_path = self.mock_input_dir / artifact_name / "library" / "build" / "bin" / platform_target / "releaseShared" / f"{binary_name}.{extension}"
+        # 새로운 Mock 아티팩트 구조: input_dir / all-binaries / library/build/bin / platform_target / releaseShared / binary_name.extension
+        binary_path = self.mock_input_dir / "all-binaries" / "library" / "build" / "bin" / platform_target / "releaseShared" / f"{binary_name}.{extension}"
         binary_path.parent.mkdir(parents=True, exist_ok=True)
         binary_path.touch()  # 더미 파일 생성
         print(f"Created mock binary: {binary_path}")
@@ -69,35 +71,13 @@ class TestPrepareReleaseAssets(unittest.TestCase):
         binary_base = "my-library"  # gradle.properties에 설정된 이름과 일치
 
         # 모든 required_platforms에 대해 mock 바이너리 파일 생성
-        platform_extensions = {
-            "linuxX64": "so",
-            "windowsX64": "dll",
-            "androidNativeArm64": "so",
-            "androidNativeX64": "so", # Android x64도 .so를 사용한다고 가정
-            "macosArm64": "dylib",
-            "macosX64": "dylib",
-            "iosArm64": "dylib",
-            "iosX64": "dylib",
-        }
-        platform_artifact_map = {
-            "linuxX64": "non-apple-binaries",
-            "windowsX64": "non-apple-binaries",
-            "androidNativeArm64": "non-apple-binaries",
-            "androidNativeX64": "non-apple-binaries",
-            "macosArm64": "apple-binaries",
-            "macosX64": "apple-binaries",
-            "iosArm64": "apple-binaries",
-            "iosX64": "apple-binaries",
-        }
-
-        for platform in self.all_required_platforms:
-            artifact_name = platform_artifact_map.get(platform)
-            extension = platform_extensions.get(platform)
-            if artifact_name and extension:
-                self._create_mock_artifact_structure(artifact_name, platform, binary_base, extension)
+        # prepare_release_assets에서 임포트한 required_platforms 및 platform_extensions 사용
+        for platform in required_platforms:
+            extension = self.platform_extensions.get(platform)
+            if extension:
+                self._create_mock_artifact_structure(platform, binary_base, extension)
             else:
-                print(f"::warning::Missing artifact name or extension mapping for platform: {platform}. Cannot create mock binary.")
-
+                print(f"::warning::Missing extension mapping for platform: {platform}. Cannot create mock binary.")
 
         # prepare_assets 함수 실행
         result = prepare_release_assets.prepare_assets(
@@ -108,38 +88,33 @@ class TestPrepareReleaseAssets(unittest.TestCase):
         self.assertTrue(result, "prepare_assets should return True when all required binaries are found")
 
         # 출력 디렉토리 구조 및 파일 존재 확인 (required_platforms에 해당하는 모든 파일 확인)
+        # prepare_release_assets.py 스크립트가 추출된 플랫폼 타겟 이름으로 출력 디렉토리를 생성함
         expected_output_files = [
-             self.mock_output_dir / prepare_release_assets.platform_name_map.get(p, p) / f"{binary_base}.{platform_extensions.get(p, 'bin')}"
-             for p in self.all_required_platforms
-             if prepare_release_assets.platform_name_map.get(p, p) and platform_extensions.get(p) # 매핑 및 확장자 정보가 있는 경우만
+            self.mock_output_dir / p / f"{binary_base}.{self.platform_extensions.get(p, 'bin')}" # 추출된 플랫폼 타겟 이름(p) 사용
+            for p in required_platforms # 임포트한 required_platforms 사용
+            if self.platform_extensions.get(p) # 확장자 정보가 있는 경우만
         ]
-
 
         for expected_file in expected_output_files:
             self.assertTrue(expected_file.exists(), f"Expected output file not found: {expected_file}")
             print(f"Verified output file: {expected_file}")
 
     def test_missing_specific_platform_binary(self):
-        """엣지 케이스: 특정 필수 플랫폼의 바이너리가 누락된 경우"""
+        """엣지 케이스: 특정 필수 플랫폼의 바이너리가 누락된 경우 (스크ript 실패 예상)"""
         binary_base = "my-library"
 
         # required_platforms 중 일부만 Mock 바이너리 생성 (예: linuxX64, windowsX64 만)
         # 이렇게 하면 일부 필수 플랫폼 (macos, ios 등)이 누락됩니다.
         platforms_to_create = {"linuxX64", "windowsX64"}
-        platform_extensions = {
+        platform_extensions_subset = {
             "linuxX64": "so",
             "windowsX64": "dll",
         }
-        platform_artifact_map = {
-             "linuxX64": "non-apple-binaries",
-             "windowsX64": "non-apple-binaries",
-        }
 
         for platform in platforms_to_create:
-            artifact_name = platform_artifact_map.get(platform)
-            extension = platform_extensions.get(platform)
-            if artifact_name and extension:
-                 self._create_mock_artifact_structure(artifact_name, platform, binary_base, extension)
+            extension = platform_extensions_subset.get(platform)
+            if extension:
+                self._create_mock_artifact_structure(platform, binary_base, extension)
 
 
         # prepare_assets 함수 실행
@@ -151,14 +126,14 @@ class TestPrepareReleaseAssets(unittest.TestCase):
         self.assertFalse(result, "prepare_assets should return False when required binaries are missing")
 
         # 스크립트가 찾은 파일들은 출력 디렉토리에 복사되었는지 확인
-        # 이 경우 linux와 windows 바이너리가 복사되었어야 합니다.
+        # 이 경우 linuxX64와 windowsX64 바이너리가 복사되었어야 합니다.
         copied_output_files = [
-             self.mock_output_dir / prepare_release_assets.platform_name_map.get(p, p) / f"{binary_base}.{platform_extensions.get(p, 'bin')}"
-             for p in platforms_to_create # Mock으로 생성한 플랫폼만 확인
-             if prepare_release_assets.platform_name_map.get(p, p) and platform_extensions.get(p)
+            self.mock_output_dir / p / f"{binary_base}.{platform_extensions_subset.get(p, 'bin')}" # 추출된 플랫폼 타겟 이름(p) 사용
+            for p in platforms_to_create # Mock으로 생성한 플랫폼만 확인
+            if platform_extensions_subset.get(p)
         ]
         for copied_file in copied_output_files:
-             self.assertTrue(copied_file.exists(), f"Copied output file not found: {copied_file}")
+            self.assertTrue(copied_file.exists(), f"Copied output file not found: {copied_file}")
 
         # 출력 디렉토리가 비어있지 않음을 확인 (찾은 파일이 복사되었으므로)
         self.assertTrue(list(self.mock_output_dir.iterdir()), "Output directory should not be empty if some binaries were copied")
@@ -182,47 +157,21 @@ class TestPrepareReleaseAssets(unittest.TestCase):
 
 
     def test_missing_artifact_directory(self):
-        """엣지 케이스: 특정 아티팩트 이름의 다운로드 디렉토리가 없는 경우 (필수 플랫폼 누락 예상)"""
-        binary_base = "my-library"
-
-        # non-apple-binaries 아티팩트만 생성하고 그 안에 바이너리 생성
-        # 이렇게 하면 apple-binaries에 속한 필수 플랫폼들이 누락됩니다.
-        platforms_to_create = {"linuxX64", "windowsX64"}
-        platform_extensions = {
-            "linuxX64": "so",
-            "windowsX64": "dll",
-        }
-        platform_artifact_map = {
-             "linuxX64": "non-apple-binaries",
-             "windowsX64": "non-apple-binaries",
-        }
-
-        for platform in platforms_to_create:
-             artifact_name = platform_artifact_map.get(platform)
-             extension = platform_extensions.get(platform)
-             if artifact_name and extension:
-                  self._create_mock_artifact_structure(artifact_name, platform, binary_base, extension)
+        """엣지 케이스: 다운로드된 아티팩트 디렉토리 자체가 없는 경우 (필수 플랫폼 누락 예상)"""
+        # self.mock_input_dir / "all-binaries" 디렉토리를 생성하지 않음
 
         # prepare_assets 함수 실행
         result = prepare_release_assets.prepare_assets(
             str(self.mock_input_dir), str(self.mock_output_dir), str(self.mock_prop_file)
         )
 
-        # 결과 검증: 필수 바이너리가 누락되었으므로 False를 반환해야 함
-        self.assertFalse(result, "prepare_assets should return False if a required artifact directory is missing")
+        # 결과 검증: 다운로드된 아티팩트 디렉토리가 없으므로 False를 반환해야 함
+        self.assertFalse(result, "prepare_assets should return False if the downloaded artifact directory is missing")
 
-        # 스크립트가 찾은 파일들은 출력 디렉토리에 복사되었는지 확인
-        # 이 경우 linux와 windows 바이너리가 복사되었어야 합니다.
-        copied_output_files = [
-             self.mock_output_dir / prepare_release_assets.platform_name_map.get(p, p) / f"{binary_base}.{platform_extensions.get(p, 'bin')}"
-             for p in platforms_to_create # Mock으로 생성한 플랫폼만 확인
-             if prepare_release_assets.platform_name_map.get(p, p) and platform_extensions.get(p)
-        ]
-        for copied_file in copied_output_files:
-             self.assertTrue(copied_file.exists(), f"Copied output file not found: {copied_file}")
-
-        # 출력 디렉토리가 비어있지 않음을 확인
-        self.assertTrue(list(self.mock_output_dir.iterdir()), "Output directory should not be empty if some binaries were copied")
+        # 출력 디렉토리가 존재하지만 비어 있는지 확인 (스크립트 로직에 따름)
+        # 스크립트는 실패하더라도 출력 디렉토리를 생성하므로 이와 같이 검증합니다.
+        self.assertTrue(self.mock_output_dir.exists(), "Output directory should exist even if downloaded artifact directory is missing")
+        self.assertFalse(list(self.mock_output_dir.iterdir()), "Output directory should be empty if downloaded artifact directory is missing")
 
 
     def test_incorrect_binary_filename_in_properties(self):
@@ -236,9 +185,9 @@ class TestPrepareReleaseAssets(unittest.TestCase):
         # mock 바이너리 파일 생성 (required_platforms에 포함된 플랫폼으로)
         # Binary Filename이 틀렸으므로 스크립트는 이 파일을 찾지 못할 것입니다.
         platform_to_create = "linuxX64"
-        artifact_name = "non-apple-binaries"
-        extension = "so"
-        self._create_mock_artifact_structure(artifact_name, platform_to_create, binary_base, extension)
+        extension = self.platform_extensions.get(platform_to_create)
+        if extension:
+            self._create_mock_artifact_structure(platform_to_create, binary_base, extension)
 
 
         # prepare_assets 함수 실행

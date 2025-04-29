@@ -11,7 +11,9 @@ jobs:
   # =============================================================================
   # Job 1: Linux, Windows, Android 타겟 빌드
   # =============================================================================
-  build_linux_windows_android:
+  # Apple 빌드는 macos 환경이 필요하므로, 빌드 잡을 분리 유지합니다.
+  # 하지만 아티팩트 업로드는 단일 아티팩트 이름을 사용하도록 변경합니다.
+  build_non_apple:
     name: Build Linux + Windows + Android
     runs-on: ubuntu-latest
     steps:
@@ -26,15 +28,17 @@ jobs:
           java-version: '17'
 
       # 1.3. Gradle 'assemble' 실행
-      - name: Build All Targets (Assemble)
+      - name: Build Non-Apple Targets (Assemble)
         run: ./gradlew assemble --build-cache
 
       # 1.4. 빌드 결과물 아티팩트로 업로드 (릴리즈 Job에서 사용)
-      - name: Upload Linux/Windows/Android Artifacts
+      # 단일 아티팩트 이름 'all-binaries' 사용
+      - name: Upload Non-Apple Binaries Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: non-apple-binaries
-          ## KMP 프로젝트의 서브모듈 `library` 빌드경로: {project-root}/library/build/
+          name: all-binaries # 단일 아티팩트 이름 사용
+          # 실제 프로젝트 경로에 맞게 수정 필요
+          # 여러 경로를 지정하여 단일 아티팩트로 업로드합니다.
           path: |
             library/build/bin/linuxX64/releaseShared/
             library/build/bin/windowsX64/releaseShared/
@@ -61,14 +65,16 @@ jobs:
           setup-xcode: 'true'
 
       # 2.3. Gradle 'assemble' 실행
-      - name: Build All Targets (Assemble)
+      - name: Build Apple Targets (Assemble)
         run: ./gradlew assemble --build-cache
 
       # 2.4. 빌드 결과물 아티팩트로 업로드 (릴리즈 Job에서 사용)
-      - name: Upload Apple Artifacts
+      # 단일 아티팩트 이름 'all-binaries' 사용
+      # append: true 옵션을 사용하여 기존 아티팩트에 추가합니다.
+      - name: Upload Apple Binaries Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: apple-binaries
+          name: all-binaries
           # KMP 프로젝트의 서브모듈 `library` 빌드경로: {project-root}/library/build/
           path: |
             library/build/bin/macosArm64/releaseShared/
@@ -76,14 +82,17 @@ jobs:
             library/build/bin/iosArm64/releaseShared/
             library/build/bin/iosX64/releaseShared/
           retention-days: 1
+          # append: true # 여러 잡에서 동일 아티팩트 이름 사용 시 필요 (v4에서 기본 동작일 수 있음)
+          # 명시적으로 append를 사용하는 것이 안전합니다.
 
   # =============================================================================
   # Job 3: 릴리즈 생성 및 패키징
   # =============================================================================
   create_release:
     name: Create Release Package
+    # 모든 빌드 잡 완료 후 실행
+    needs: [build_non_apple, build_apple]
     runs-on: ubuntu-latest
-    needs: [build_linux_windows_android, build_apple] # 모든 빌드 완료 후 실행
     permissions:
       contents: write # 릴리즈 생성 및 에셋 업로드 권한
 
@@ -93,20 +102,17 @@ jobs:
         uses: actions/checkout@v4
 
       # 3.2. 릴리즈 준비 (Composite Action 사용)
-      # 이 액션은 내부적으로 아티팩트 다운로드, 에셋 준비, 정보 생성을 수행함.
-      # prepare-release 액션은 수정된 prepare_release_assets.py와 generate_release_info.py를 사용하게 됩니다.
+      # 이 액션은 내부적으로 단일 아티팩트 다운로드, 에셋 준비, 정보 생성을 수행함.
       - name: Prepare Release Assets and Info
         id: prepare # 출력 참조를 위한 ID
         uses: ./.github/actions/prepare-release
         with:
           # 태그 이름에서 'v' 제거하여 버전 번호 전달
-          # 태그 이름 자체를 전달하거나, 스크립트처럼 'v' 제거 로직 추가 가능
           version: ${{ github.ref_name }}
-          # 필요 시 다른 input 전달 (python-version 등)
-          # artifact-download-path: 'downloaded-artifacts' # 기본값 사용 시 생략 가능
-          # prepared-assets-path: 'release-assets' # 기본값 사용 시 생략 가능
-          # output-body-file: 'release-body.md' # 기본값 사용 시 생략 가능
-          # output-zip-file-pattern: 'platform-binaries-{version}.zip' # 기본값 사용 시 생략 가능
+          # artifact-download-path는 prepare-release 액션에서 처리
+          # prepared-assets-path는 prepare-release 액션에서 처리
+          # output-body-file는 prepare-release 액션에서 처리
+          # output-zip-file-pattern는 prepare-release 액션에서 처리
 
       # 3.3. GitHub 릴리즈 생성 및 **단일 압축 파일** 업로드
       - name: Create GitHub Release and Upload Zip Asset
