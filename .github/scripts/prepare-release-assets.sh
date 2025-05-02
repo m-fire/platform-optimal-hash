@@ -1,6 +1,6 @@
 #!/bin/bash
 # .github/scripts/prepare-release-assets.sh
-# 설명: 다운로드된 빌드 아티팩트에서 최종 릴리스 에셋 준비 (플랫폼별 폴더 구조 유지, 파일명 통일)
+# 설명: 다운로드된 빌드 아티팩트에서 최종 릴리스 에셋 준비 (플랫폼 정보 포함 파일명으로 통일)
 
 # 오류 발생 시 즉시 종료, 정의되지 않은 변수 사용 시 오류
 set -euo pipefail
@@ -29,7 +29,6 @@ echo "Gradle 속성 파일 확인 완료."
 
 # --- 바이너리 파일명 추출 (from gradle.properties) ---
 echo "바이너리 파일명 추출 중..."
-# 주석(#)이 아닌 줄에서 'binaryFilename='으로 시작하는 첫 번째 줄의 값을 추출
 BINARY_FILENAME=$(grep -E '^\s*binaryFilename\s*=' "$GRADLE_PROPERTIES_PATH" | grep -v '^\s*#' | sed -E 's/^\s*binaryFilename\s*=\s*(.*)\s*/\1/' | head -n 1)
 
 if [ -z "$BINARY_FILENAME" ]; then
@@ -46,7 +45,7 @@ echo "출력 디렉토리 준비 완료."
 
 # --- 아티팩트 검색 및 플랫폼별 에셋 복사/이름 변경 ---
 echo "아티팩트 검색 및 플랫폼별 에셋 처리 시작..."
-shopt -s globstar # ** 패턴 사용 가능하도록 설정 (하위 디렉토리 재귀 검색)
+shopt -s globstar # ** 패턴 사용 가능하도록 설정
 
 # 아티팩트 디렉토리 존재 확인
 if [ ! -d "$ARTIFACTS_DIR" ]; then
@@ -55,11 +54,8 @@ if [ ! -d "$ARTIFACTS_DIR" ]; then
 fi
 
 # releaseShared 디렉토리 검색
-# find 대신 globstar 사용 (더 간결할 수 있음)
-# ** 는 0개 이상의 디렉토리를 의미
 found_assets=false
 for shared_dir in "${ARTIFACTS_DIR}"/**/releaseShared; do
-    # 디렉토리가 실제로 존재하는지 확인 (glob이 매치되는 것이 없으면 패턴 그대로 반환될 수 있음)
     if [ ! -d "$shared_dir" ]; then
         continue
     fi
@@ -69,32 +65,28 @@ for shared_dir in "${ARTIFACTS_DIR}"/**/releaseShared; do
     echo "--- 처리 중: 플랫폼 ${platform_name} (${shared_dir}) ---"
 
     # 플랫폼에 따른 확장자 결정
-    ext="" # 초기화
+    ext=""
     case "$platform_name" in
         *linux*|*android*) ext="so";;
         *macos*|*ios*) ext="dylib";;
         *windows*|*mingw*) ext="dll";;
         *)
           echo "  ::warning::알 수 없는 플랫폼 유형(${platform_name})입니다. 확장자를 결정할 수 없습니다."
-          continue # 다음 디렉토리 처리
+          continue
           ;;
     esac
-    target_filename="${BINARY_FILENAME}.${ext}"
-    echo "  결정된 확장자: .${ext}, 목표 파일명: ${target_filename}"
+    # 플랫폼 정보를 포함한 최종 파일명 (<binaryFilename>-<platform>.<ext>)
+    target_filename_with_platform="${BINARY_FILENAME}-${platform_name}.${ext}"
+    echo "  결정된 확장자: .${ext}, 목표 파일명: ${target_filename_with_platform}"
 
-    # 해당 releaseShared 디렉토리 내에서 바이너리 파일 검색 (하나만 찾는다고 가정)
-    # 이름에 BINARY_FILENAME 포함(대소문자 무시), 올바른 확장자, 파일 타입 (-type f)
-    # find로 변경하여 더 명확하게 검색
+    # 해당 releaseShared 디렉토리 내에서 바이너리 파일 검색
     src_file=$(find "$shared_dir" -maxdepth 1 -type f -iname "*${BINARY_FILENAME}*.${ext}" -print -quit)
 
     if [ -n "$src_file" ] && [ -f "$src_file" ]; then
         echo "  발견된 원본 파일: ${src_file}"
-        # 출력 디렉토리에 플랫폼 하위 폴더 생성
-        platform_output_dir="${OUTPUT_DIR}/${platform_name}"
-        mkdir -p "${platform_output_dir}"
-        # 대상 경로로 복사 및 이름 변경
-        cp "$src_file" "${platform_output_dir}/${target_filename}"
-        echo "  복사 및 이름 변경 완료: ${platform_output_dir}/${target_filename}"
+        # 출력 디렉토리에 플랫폼 정보 포함 이름으로 직접 복사
+        cp "$src_file" "${OUTPUT_DIR}/${target_filename_with_platform}"
+        echo "  복사 및 이름 변경 완료: ${OUTPUT_DIR}/${target_filename_with_platform}"
         found_assets=true
     else
         echo "  ::warning::플랫폼 ${platform_name} 에서 '${BINARY_FILENAME}' 포함 .${ext} 파일을 찾지 못했습니다 (${shared_dir}). 빌드 아티팩트를 확인하세요."
@@ -107,7 +99,6 @@ echo "최종 에셋 구조 확인 (${OUTPUT_DIR}):"
 if command -v tree >/dev/null 2>&1; then
     tree "${OUTPUT_DIR}" || echo "tree 명령어 실행 실패 또는 디렉토리 비어있음."
 else
-    # tree가 없으면 ls 사용
     ls -R "${OUTPUT_DIR}" || echo "ls 명령어 실행 실패 또는 디렉토리 비어있음."
 fi
 
