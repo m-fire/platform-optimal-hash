@@ -1,0 +1,15 @@
+# .github/actions/run-checks/action.yml
+# 설명: Gradle Check 및 Ktlint 검사 실행 Composite Action
+name: 'Run Checks and Linters'
+description: 'Runs Gradle check and ktlintCheck tasks'
+runs:
+  using: "composite"
+  steps:
+    - name: Run Checks & Linters
+      # 셸 지정 및 오류 시 즉시 종료 설정
+      shell: bash
+      run: |
+        set -e
+        echo "Running ./gradlew check ktlintCheck..."
+        ./gradlew check ktlintCheck --build-cache
+        echo "Checks and Linters completed successfully."

@@ -1,0 +1,26 @@
+# .github/actions/setup-java-gradle/action.yml
+# 설명: Java 및 Gradle 환경 설정 Composite Action
+name: 'Setup Java and Gradle'
+description: 'Sets up Java (Temurin) and Gradle environment with caching'
+inputs:
+  java-version:
+    description: 'Version of Java to set up'
+    required: false
+    default: '17'
+  distribution:
+    description: 'Java distribution'
+    required: false
+    default: 'temurin'
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: ${{ inputs.distribution }}
+        java-version: ${{ inputs.java-version }}
+
+    - name: Set up Gradle # Gradle 설정 및 캐싱 활성화
+      uses: gradle/actions/setup-gradle@v4
+      # Gradle 빌드 캐시 및 의존성 캐시 활용
+      # 자세한 설정은 https://github.com/gradle/actions/blob/main/setup-gradle/README.md#caching 참조
