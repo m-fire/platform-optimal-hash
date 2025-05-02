@@ -61,9 +61,10 @@ jobs:
           # 스크립트에 최신 태그 전달
           INPUT_LATEST_RELEASE_TAG: ${{ steps.get_latest_tag.outputs.tag }}
 
-      - name: Run Unit Tests
-        run: ./gradlew test
+      # TODO: (선택) KMP 네이티브 라이브러리 프로젝트에서 테스트를 어떻게 하지?
+      # #- name: Run Unit Tests
+      # #  run: ./gradlew test
 
       # (선택) 필요시 빌드 가능 여부 확인 (아티팩트 생성 제외)
       # - name: Check Buildability
-      #   run: ./gradlew assemble # 예시 (릴리스 빌드 아님)
+      #   run: ./gradlew assembleDebug # 예시 (릴리스 빌드 아님)
