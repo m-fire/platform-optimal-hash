@@ -1,0 +1,70 @@
+# .github/workflows/pr-validation.yml
+# 설명: Pull Request 코드 검증 워크플로우
+name: PR Validation
+
+# ================= Trigger Conditions =================
+on:
+  pull_request:
+    branches: [ main ]
+    paths: # 변경 감지 경로 (기존과 동일하게 유지 또는 필요시 조정)
+      - '.github/workflows/**'
+      - '.github/actions/**'
+      - '.github/scripts/**'
+      - 'library/**'
+      - 'gradle/**'
+      - 'gradle.properties'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+
+# ================= Permissions =================
+permissions:
+  contents: read # 코드 읽기 권한만 필요
+
+# ================= Jobs =================
+jobs:
+  # -----------------------------------------------------
+  # Job: Validate Code (Lint, Test, Version Check)
+  # -----------------------------------------------------
+  validate-code:
+    name: Validate Code Quality and Version
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        # 버전 비교를 위해 태그 정보 필요
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java and Gradle # Composite Action 사용
+        uses: ./.github/actions/setup-java-gradle # 로컬 경로 사용
+        with:
+          java-version: '17'
+
+      - name: Ensure all scripts are executable # 스크립트 실행 권한 부여
+        run: chmod +x ./.github/scripts/*.sh
+
+      - name: Run Checks and Linters # Composite Action 사용
+        uses: ./.github/actions/run-checks
+
+      # --- 버전 유효성 검증 ---
+      - name: Get latest release tag
+        id: get_latest_tag
+        uses: actions-ecosystem/action-get-latest-tag@v1
+        with:
+          semver_only: true
+          with_initial_version: true # 저장소에 태그가 없을 경우 대비
+          initial_version: "0.0.0" # 초기 버전 지정
+
+      - name: Validate Version Increment
+        run: ./.github/scripts/validate-pr-version.sh
+        env:
+          # 스크립트에 최신 태그 전달
+          INPUT_LATEST_RELEASE_TAG: ${{ steps.get_latest_tag.outputs.tag }}
+
+      # (선택) 필요시 ./gradlew test 등 추가 테스트 스텝 포함
+      # - name: Run Unit Tests
+      #   run: ./gradlew test
+
+      # (선택) 필요시 빌드 가능 여부 확인 (아티팩트 생성 제외)
+      # - name: Check Buildability
+      #   run: ./gradlew assembleDebug # 예시 (릴리스 빌드 아님)

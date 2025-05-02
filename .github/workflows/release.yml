@@ -1,0 +1,187 @@
+# .github/workflows/release.yml
+# 설명: 태그 기반 빌드 및 릴리스 워크플로우
+name: Release Workflow
+
+# ================= Trigger Conditions =================
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*' # 시맨틱 버전 태그 (예: v1.0.0, v1.2.3-rc1)
+  workflow_dispatch: # 수동 실행 허용
+
+# ================= Permissions =================
+permissions:
+  contents: read # 기본 권한은 읽기
+
+# ================= Jobs =================
+jobs:
+  # -----------------------------------------------------
+  # Job 1: Validate Release Version
+  #   - 릴리스 대상 버전과 태그 일치 여부 검증
+  # -----------------------------------------------------
+  validate-release-version:
+    name: Validate Release Version
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ github.ref_name }} # 릴리스 태그 이름 출력
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+        with:
+          java-version: '17'
+
+      - name: Ensure all scripts are executable
+        run: chmod +x ./.github/scripts/*.sh
+
+      - name: Validate Tag Version Match
+        # 태그 푸시 또는 수동 실행 시 항상 실행
+        run: ./.github/scripts/validate-tag-version.sh
+        env:
+          # 스크립트에 푸시된 (또는 수동 실행 시 참조된) 태그 이름 전달
+          INPUT_PUSHED_TAG: ${{ github.ref_name }}
+
+  # -----------------------------------------------------
+  # Job 2: Build Non-Apple Platforms
+  # -----------------------------------------------------
+  build-non-apple:
+    name: Build Non-Apple (Linux, Android, Windows)
+    needs: validate-release-version # 버전 검증 완료 후 실행
+    # if 조건은 needs로 대체 가능 (성공 시에만 실행됨)
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: 'non-apple-binaries'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+        with:
+          java-version: '17'
+
+      - name: Build Non-Apple targets
+        shell: bash
+        run: |
+          set -e
+          echo "Building Non-Apple targets for tag ${{ needs.validate-release-version.outputs.release_tag }}..."
+          ./gradlew --build-cache \
+                    :library:linkReleaseSharedLinuxX64 \
+                    :library:linkReleaseSharedAndroidNativeArm64 \
+                    :library:linkReleaseSharedAndroidNativeX64 \
+                    :library:linkReleaseSharedWindowsX64
+          echo "Non-Apple build completed."
+
+      - name: Upload Non-Apple build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: non-apple-binaries
+          path: library/build/bin/*/releaseShared/
+          retention-days: 1
+
+  # -----------------------------------------------------
+  # Job 3: Build Apple Platforms
+  # -----------------------------------------------------
+  build-apple:
+    name: Build Apple (macOS, iOS)
+    needs: validate-release-version # 버전 검증 완료 후 실행
+    runs-on: macos-latest
+    outputs:
+      artifact-name: 'apple-binaries'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+        with:
+          java-version: '17'
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest'
+
+      - name: Build Apple targets
+        shell: bash
+        run: |
+          set -e
+          echo "Building Apple targets for tag ${{ needs.validate-release-version.outputs.release_tag }}..."
+          ./gradlew --build-cache \
+                    :library:linkReleaseSharedMacosArm64 \
+                    :library:linkReleaseSharedMacosX64 \
+                    :library:linkReleaseSharedIosArm64 \
+                    :library:linkReleaseSharedIosX64
+          echo "Apple build completed."
+
+      - name: Upload Apple build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: apple-binaries
+          path: library/build/bin/*/releaseShared/
+          retention-days: 1
+
+  # -----------------------------------------------------
+  # Job 4: Package and Release
+  # -----------------------------------------------------
+  package-release:
+    name: Package and Create Release
+    needs: [validate-release-version, build-non-apple, build-apple] # 모든 빌드 Job 완료 후 실행
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 릴리스 생성 및 에셋 업로드를 위해 쓰기 권한 필요
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Ensure all scripts are executable
+        run: chmod +x ./.github/scripts/*.sh
+
+      # 버전 정보 가져오기 (gradle.properties 사용)
+      - name: Determine Version from Properties
+        id: version
+        run: ./.github/scripts/get-version-from-gradle.sh
+
+      # 빌드 아티팩트 다운로드
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: downloaded-artifacts
+
+      # 릴리스 에셋 준비 (이름 변경 및 구조화)
+      - name: Prepare Release Assets
+        run: ./.github/scripts/prepare-release-assets.sh downloaded-artifacts release-assets
+
+      # Zip 아카이브 생성
+      - name: Create zip archive of assets
+        id: zip
+        shell: bash
+        run: |
+          set -e
+          PKG_NAME="platform-binaries-${{ steps.version.outputs.version_num }}"
+          ZIP_FILENAME="${PKG_NAME}.zip"
+          echo "Creating zip archive: ${ZIP_FILENAME}"
+          cd release-assets
+          zip -r "../${ZIP_FILENAME}" .
+          cd ..
+          echo "Zip file created: ${ZIP_FILENAME}"
+          echo "zip_name=${ZIP_FILENAME}" >> $GITHUB_OUTPUT
+
+      # GitHub 릴리스 생성 및 에셋 업로드
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.validate-release-version.outputs.release_tag }} # 트리거된 태그 사용
+          name: Release ${{ steps.version.outputs.version_num }}
+          draft: false
+          prerelease: contains(needs.validate-release-version.outputs.release_tag, '-') # 태그에 '-' 포함 시 prerelease
+          files: |
+            ${{ steps.zip.outputs.zip_name }}
+            release-assets/**/*
+          generate_release_notes: true # 자동 릴리스 노트 생성
+
+      # (선택) 필요시 외부 저장소 배포 스텝 추가
+      # - name: Deploy to Maven Central
+      #   run: ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository
