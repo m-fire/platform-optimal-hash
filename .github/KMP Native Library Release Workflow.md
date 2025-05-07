@@ -12,9 +12,7 @@
     1. `main` 브랜치로 향하는 Pull Request 생성/업데이트 시 트리거됨.
     2. **기본 환경 설정:** 코드 체크아웃, Java 17/Gradle 환경 설정(캐싱 활성화), 스크립트 실행 권한 부여 진행.
     3. **코드 검사:** Gradle `check`, `ktlintCheck` 실행으로 코드 품질 및 스타일 검증 (`run-checks` Composite Action).
-    4. **버전 증가 검증:** `gradle.properties`의 `libVersion` 값을 가져와 앞뒤 공백을 제거(trim)하고, 가장 최근 시맨틱 버전 태그 조회 후 trim된 `libVersion`
-       이 이보다 높은 버전인지 검증 (`validate-pr-version.sh`).
-    5. 모든 단계 성공 시 PR에 녹색 체크 표시, 실패 시 빨간 X 표시.
+    4. 모든 단계 성공 시 PR에 녹색 체크 표시, 실패 시 빨간 X 표시.
 
 ### 2. 릴리스 워크플로우 (`release.yml`)
 

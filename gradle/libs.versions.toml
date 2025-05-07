@@ -12,10 +12,11 @@ kotlinXCoroutines = "1.10.1"
 #ktor = "3.0.0"
 ## Android
 ### agp 플러그인 버전 별 Gralde 호환버전: https://developer.android.com/build/releases/gradle-plugin?hl=ko#updating-gradle
-agp = "8.9.1"
+agp = "8.9.2"
 androidCompileSdk = "35"
 androidMinSdk = "24"
 androidTargetSdk = "35"
+androidXStartupRuntime = "1.2.0"
 androidXActivityCompose = "1.10.1"
 androidXAppcompat = "1.7.0"
 androidXConstraintlayout = "2.2.1"
@@ -50,7 +51,7 @@ googleGuavaJre = "33.3.1-jre"
 #googleGuavaAndroid = "33.3.1-android"
 jacksonModuleJakartaXmlbindAnnotations = "2.18.0"
 ulidCreator = "5.2.3"
-bcprovJdk18On = "1.78.1"
+bcprovJdk18On = "1.79"
 # docs
 asciidoctor = "4.0.2"
 restdocsApiSpec = "0.19.4"
@@ -59,8 +60,9 @@ springRestdocs = "3.0.2"
 androidXTest = "1.6.2"
 androidXTestExt = "1.2.1"
 androidXTestJunit = "1.2.1"
+androidXTestEspressoCore = "3.6.1"
 junit = "4.13.2"
-kotest = "5.9.1"
+kotest = "6.0.0.M3"
 kotestExtensionsSpring = "1.3.0"
 springMockk = "4.0.2"
 #sentry = "4.13.0"
@@ -79,8 +81,9 @@ androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "androidX
 androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "androidXEspressoCore" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidXAppcompat" }
 androidx-material = { module = "com.google.android.material:material", version.ref = "androidXMaterial" }
-androidx-constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "androidXConstraintlayout" }
+androidx-startup-runtime = { module = "androidx.startup:startup-runtime", version.ref = "androidXStartupRuntime" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidXActivityCompose" }
+androidx-constraintlayout = { module = "androidx.constraintlayout:constraintlayout", version.ref = "androidXConstraintlayout" }
 androidx-lifecycle-viewmodel = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel", version.ref = "androidXLifecycle" }
 androidx-lifecycle-runtime-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-runtime-compose", version.ref = "androidXLifecycle" }
 # spring based
@@ -131,8 +134,10 @@ asciidoctor-convert = { module = "org.asciidoctor:asciidoctor-gradle-jvm", versi
 # test
 junit = { module = "junit:junit", version.ref = "junit" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
-kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
+kotlin-test-common = { module = "org.jetbrains.kotlin:kotlin-test-common", version.ref = "kotlin" }
 kotlin-test-annotations-common = { module = "org.jetbrains.kotlin:kotlin-test-annotations-common", version.ref = "kotlin" }
+kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
+kotlin-test-js = { module = "org.jetbrains.kotlin:kotlin-test-js", version.ref = "kotlin" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinXCoroutines" }
 kotest-framework-engine = { module = "io.kotest:kotest-framework-engine", version.ref = "kotest" }
 kotest-assertions-core = { module = "io.kotest:kotest-assertions-core", version.ref = "kotest" }
@@ -145,6 +150,7 @@ restdocs-api-spec-restassured = { module = "com.epages:restdocs-api-spec-restass
 androidx-test-core = { module = "androidx.test:core", version.ref = "androidXTest" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidXTest" }
 androidx-test-junit = { module = "androidx.test.ext:junit", version.ref = "androidXTestJunit" }
+androidx-test-espresso-core = { module = "androidx.test:espresso-core", version.ref = "androidXTestEspressoCore" }
 ## Spring based
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
 spring-security-test = { module = "org.springframework.security:spring-security-test" }
@@ -180,3 +186,5 @@ spring-dependencyManagement = { id = "io.spring.dependency-management", version.
 # docs
 asciidoctor-jvm-convert = { id = "org.asciidoctor.jvm.convert", version.ref = "asciidoctor" }
 epages-restdocsApiSpec = { id = "com.epages.restdocs-api-spec", version.ref = "restdocsApiSpec" }
+# test
+kotestMultiplatform = { id = "io.kotest.multiplatform", version.ref = "kotest" }
