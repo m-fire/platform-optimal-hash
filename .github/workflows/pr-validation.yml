@@ -46,24 +46,8 @@ jobs:
       - name: Run Checks and Linters # Composite Action 사용
         uses: ./.github/actions/run-checks
 
-      # --- 버전 유효성 검증 ---
-      - name: Get latest release tag
-        id: get_latest_tag
-        uses: actions-ecosystem/action-get-latest-tag@v1.6.0
-        with:
-          semver_only: true
-          with_initial_version: true # 저장소에 태그가 없을 경우 대비
-          initial_version: "0.0.0" # 초기 버전 지정
-
-      - name: Validate Version Increment
-        run: ./.github/scripts/validate-pr-version.sh
-        env:
-          # 스크립트에 최신 태그 전달
-          INPUT_LATEST_RELEASE_TAG: ${{ steps.get_latest_tag.outputs.tag }}
-
-      # TODO: (선택) KMP 네이티브 라이브러리 프로젝트에서 테스트를 어떻게 하지?
-      # #- name: Run Unit Tests
-      # #  run: ./gradlew test
+      - name: Run Gradle Tests
+        run: ./gradlew check
 
       # (선택) 필요시 빌드 가능 여부 확인 (아티팩트 생성 제외)
       # - name: Check Buildability
