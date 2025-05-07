@@ -1,5 +1,5 @@
 #!/bin/bash
-# .github/scripts/validate-pr-version.sh
+# .github/scripts/validate-tag-version.sh
 # 설명: PR 시 gradle.properties의 libVersion 값을 trim하여 최신 릴리스 태그보다 높은지 검증
 
 # 오류 발생 시 즉시 종료
