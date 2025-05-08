@@ -2,119 +2,146 @@ package io.stormi.support.platform.collection.hash
 
 import kotlinx.cinterop.COpaquePointer
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.LongVar
+import kotlinx.cinterop.UIntVar
 import kotlinx.cinterop.get
 import kotlinx.cinterop.reinterpret
 import kotlin.experimental.ExperimentalNativeApi
+import kotlin.math.abs
 
-// --- Tabulation Hashing 관련 상수 ---
-const val TABLE_SIZE = 1024 // 테이블 전체 크기 (4 * 256)
-const val TABLE_BUCKET_SIZE = 256 // 각 바이트별 테이블 크기
-const val TABLE_COUNT = 4 // 사용하는 바이트 수 (Long 타입은 8바이트지만, 하위 4바이트만 사용)
-const val BYTE_SHIFT = 8 // 바이트 이동 시프트 값
-const val BYTE_MASK = 0xFF // 바이트 추출 마스크
+// --- 프로빙 타입 상수 ---
+const val PROBING_TYPE_QUADRATIC = 0
+const val PROBING_TYPE_DOUBLE_HASHING = 1
 
-// --- Universal Hashing 관련 상수 ---
-const val P_MODULUS: Long = 4294967311L // 소수 모듈러스 p (2^32에 가까운 소수)
+// --- 기존 상수 ---
+const val BYTE_MASK = 0xFF
+const val P_MODULUS: Long = 4294967311L
 
 /**
- * Tabulation Hashing 네이티브 구현.
- * 64비트 입력 키의 하위 4바이트를 사용하여 해싱 수행.
- *
- * @param keyHashCode 입력 키의 해시 코드 (64비트 Long).
- * @param tableDataPtr 미리 계산된 랜덤 값 테이블을 가리키는 네이티브 포인터 (`LongVar` 배열).
- * @return 계산된 64비트 해시 값. 테이블 포인터가 null이면 `keyHashCode`를 그대로 반환.
+ * Tabulation Hashing 네이티브 구현. (변경 없음)
  */
 @OptIn(ExperimentalNativeApi::class, ExperimentalForeignApi::class)
-@CName("elastic_tabulation_hash") // 네이티브 함수 이름 지정
-fun elasticTabulationHashNative(keyHashCode: Long, tableDataPtr: COpaquePointer?): Long {
-    // 포인터 유효성 검사 (early return)
+@CName("elastic_tabulation_hash")
+fun elasticTabulationHashNative(
+    keyHashCode: Long,
+    tableDataPtr: COpaquePointer?,
+    tableCount: Int,
+    tableBucketSize: Int,
+    byteShift: Int,
+): Long {
     if (tableDataPtr == null) {
-        // 테이블 데이터가 없으면 입력값을 그대로 반환 (오류 처리 또는 기본 동작)
         return keyHashCode
     }
-
-    // 포인터를 Long 배열 포인터로 변환 (reinterpret)
-    val tableData = tableDataPtr.reinterpret<LongVar>()
-    var result = 0L // 최종 해시 결과 (Long)
-
-    // 하위 4개의 바이트에 대해 테이블 조회 및 XOR 연산 수행
-    for (i in 0 until TABLE_COUNT) {
-        // i번째 바이트 값 추출 (0xFF 마스크 적용)
-        val byteVal = (keyHashCode shr (i * BYTE_SHIFT)).toInt() and BYTE_MASK
-        // 평탄화된 1차원 테이블에서의 인덱스 계산
-        val tableIndex = i * TABLE_BUCKET_SIZE + byteVal
-
-        // 배열 범위 검사 (안전 장치, 이론적으로는 불필요하나 방어적 코드)
-        // C Interop 사용 시 메모리 접근 오류 방지를 위해 추가하는 것이 좋음.
-        if (tableIndex < 0 || tableIndex >= TABLE_SIZE) {
-            // 비정상적인 상황 발생 시 예외 처리
-            throw IndexOutOfBoundsException("Table index out of bounds: $tableIndex. Key byte value was $byteVal for byte index $i.")
+    val tableData = tableDataPtr.reinterpret<UIntVar>()
+    var result = 0L
+    for (i in 0 until tableCount) {
+        val byteVal = (keyHashCode shr (i * byteShift)).toInt() and BYTE_MASK
+        val tableIndex = i * tableBucketSize + byteVal
+        val currentTotalTableSize = tableCount * tableBucketSize
+        if (tableIndex < 0 || tableIndex >= currentTotalTableSize) {
+            throw IndexOutOfBoundsException(
+                "Table index out of bounds: $tableIndex (total size: $currentTotalTableSize). " +
+                        "Key byte value was $byteVal for byte index $i. " +
+                        "Params: tableCount=$tableCount, tableBucketSize=$tableBucketSize, byteShift=$byteShift"
+            )
         }
-        // 테이블 값 조회 및 결과에 XOR 누적
-        result = result xor tableData[tableIndex]
+        result = result xor tableData[tableIndex].toLong()
     }
-    return result // 최종 64비트 해시 반환
+    return result
 }
 
 /**
- * Universal Hashing 네이티브 구현 ((a * x + b) mod p).
- * 64비트 연산을 사용하여 결과를 계산.
- *
- * @param keyHashCode 입력 키의 해시 코드 (64비트 Long, x에 해당).
- * @param a 곱셈 인자 (64비트 Long). Universal Hashing에서는 보통 0이 아닌 랜덤 값.
- * @param b 덧셈 인자 (64비트 Long). Universal Hashing에서는 보통 랜덤 값.
- * @return 계산된 64비트 Universal 해시 값 ([0, P_MODULUS - 1] 범위).
+ * Universal Hashing 네이티브 구현. (변경 없음)
  */
 @OptIn(ExperimentalNativeApi::class)
-@CName("funnel_universal_hash") // 네이티브 함수 이름 지정
+@CName("funnel_universal_hash")
 fun funnelUniversalHashNative(keyHashCode: Long, a: Long, b: Long): Long {
-    // (a * x) mod p 계산 (64비트 모듈러 곱셈 사용)
     val axModPLong = multiplyMod64(a, keyHashCode, P_MODULUS)
-
-    // (ax + b) mod p 계산
-    // 덧셈 결과가 음수가 될 수 있으므로, 모듈러 연산 시 p를 더한 후 다시 모듈러 연산 수행
-    var hashValLong = axModPLong + b // 64비트 덧셈
-    // 최종 결과를 [0, p-1] 범위로 조정
+    var hashValLong = axModPLong + b
     hashValLong = (hashValLong % P_MODULUS + P_MODULUS) % P_MODULUS
+    return hashValLong
+}
 
-    return hashValLong // 최종 64비트 해시 반환
+/**
+ * 다음 탐사 위치(인덱스)를 계산하는 네이티브 함수.
+ *
+ * @param probingType 탐사 방식 (0: Quadratic, 1: Double Hashing).
+ * @param keyHash1 키의 첫 번째 해시 값 (Long). Quadratic Probing에서는 사용되지 않음.
+ * @param keyHash2 키의 두 번째 해시 값 (Long?). Double Hashing 시 사용됨. null일 경우 예외 발생.
+ * @param attempt 현재 탐사 시도 횟수 (Int, 1부터 시작).
+ * @param initialIndex 키의 초기 해시 인덱스 (Int).
+ * @param capacity 현재 해시 테이블 용량 (Int, 2의 거듭제곱).
+ * @return 계산된 다음 탐사 인덱스 (Int).
+ */
+@OptIn(ExperimentalNativeApi::class)
+@CName("probe_next_index")
+fun probeNextIndexNative(
+    probingType: Int,
+    keyHash1: Long,      // 첫 번째 해시는 현재 로직에서 직접 사용 안 함 (initialIndex 계산에 이미 반영됨)
+    keyHash2: Long?,     // 두 번째 해시 (Double Hashing 시 사용)
+    attempt: Int,        // 시도 횟수 (1 이상)
+    initialIndex: Int,   // 초기 인덱스
+    capacity: Int,        // 현재 용량
+): Int {
+    // 입력 값 유효성 검사 (Early return 패턴은 아니지만, 시작 부분에서 검사)
+    if (capacity <= 0 || (capacity and (capacity - 1)) != 0) {
+        throw IllegalArgumentException("Capacity must be a positive power of two. Got $capacity")
+    }
+    if (attempt <= 0) {
+        throw IllegalArgumentException("Attempt must be positive. Got $attempt")
+    }
+
+    val capacityMinus1 = capacity - 1 // 마스크 계산 (Long 타입으로 확장하여 사용)
+
+    when (probingType) {
+        PROBING_TYPE_QUADRATIC -> {
+            // Quadratic Probing: (initialIndex + (attempt^2 + attempt) / 2) mod capacity
+            // (i^2 + i) / 2 계산 시 오버플로우 방지를 위해 Long 타입 사용
+            val longAttempt = attempt.toLong()
+            val quadraticTerm = (longAttempt * longAttempt + longAttempt) / 2L
+            // 최종 인덱스 계산 (Long으로 계산 후 Int로 변환)
+            val nextIndexLong = initialIndex.toLong() + quadraticTerm
+            // 비트 AND 마스킹으로 모듈러 연산 수행 (capacity가 2의 거듭제곱이므로 가능)
+            return (nextIndexLong and capacityMinus1.toLong()).toInt()
+        }
+
+        PROBING_TYPE_DOUBLE_HASHING -> {
+            // Double Hashing: (initialIndex + attempt * h2) mod capacity
+            // keyHash2 null 체크
+            if (keyHash2 == null) {
+                // Dart FFI에서 Long?를 직접 표현하기 어려우므로, 호출하는 쪽에서
+                // Double Hashing 시에는 반드시 유효한 Long 값을 전달해야 함을 의미.
+                // 또는 FFI 레벨에서 null을 나타내는 약속된 값(예: 0)을 사용하고 여기서 체크할 수도 있음.
+                // 현재는 null 전달 시 예외 발생.
+                throw IllegalArgumentException("keyHash2 must be provided and cannot be null for Double Hashing.")
+            }
+            // h2(k)를 양의 홀수로 만듦: step = abs(h2) | 1
+            val step = (abs(keyHash2) or 1L)
+            // 최종 인덱스 계산 (Long으로 계산 후 Int로 변환)
+            val nextIndexLong = initialIndex.toLong() + attempt.toLong() * step
+            // 비트 AND 마스킹으로 모듈러 연산 수행
+            return (nextIndexLong and capacityMinus1.toLong()).toInt()
+        }
+
+        else -> {
+            throw IllegalArgumentException("Unknown probing type: $probingType")
+        }
+    }
 }
 
 
-/**
- * 64비트 정수 기반 모듈러 곱셈 헬퍼 함수 ((a * x) % p).
- * 곱셈 결과가 64비트를 초과할 수 있는 경우에도 올바른 모듈러 결과를 계산 (곱셈-및-덧셈 방식 사용).
- *
- * @param a 곱셈 인자 a (Long 타입).
- * @param x 곱셈 인자 x (Long 타입).
- * @param p 모듈러스 p (Long 타입, 양수여야 함).
- * @return (a * x) % p 결과 (Long 타입, [0, p-1] 범위).
- * @throws IllegalArgumentException p가 0 이하일 경우 발생.
- */
+// multiplyMod64 함수 (변경 없음)
 fun multiplyMod64(a: Long, x: Long, p: Long): Long {
-    // 모듈러스 유효성 검사 (early return)
     if (p <= 0L) throw IllegalArgumentException("Modulus p must be positive.")
-    // 0 곱셈 최적화 (early return)
     if (a == 0L || x == 0L) return 0L
-
-    // a와 x를 [0, p-1] 범위로 초기 리덕션 (음수 입력 처리 포함)
     var currentA = (a % p + p) % p
     var currentX = (x % p + p) % p
-    var result = 0L // 최종 결과
-
-    // 곱셈-및-덧셈 (Russian Peasant Multiplication 변형) 알고리즘 사용
-    // currentX를 비트 단위로 확인하며 계산
+    var result = 0L
     while (currentX > 0L) {
-        // currentX의 마지막 비트가 1이면, 현재 currentA 값을 결과에 더함 (모듈러 연산)
         if ((currentX and 1L) == 1L) {
             result = (result + currentA) % p
         }
-        // currentA는 2배 증가 (모듈러 연산)
         currentA = (currentA * 2L) % p
-        // currentX는 오른쪽으로 1비트 시프트 (정수 나누기 2 효과)
         currentX = currentX shr 1
     }
-
-    return result // 최종 계산된 [0, p-1] 범위의 Long 값 반환
+    return result
 }
